@@ -7,13 +7,12 @@ interface FailedRequest {
 
 const api = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/', 
-    withCredentials: true, // Crucial: Transmits and accepts HttpOnly cookies
+    withCredentials: true,
     timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     },
-    // NATIVE FIX: Automates reading and sending Django CSRF cookies 
     xsrfCookieName: 'csrftoken',
     xsrfHeaderName: 'X-CSRFToken',
 });
@@ -29,7 +28,6 @@ const processQueue = (error: unknown) => {
     failedQueue = [];
 };
 
-// Keeping your manual request interceptor as a fallback mechanism for SSR contexts
 api.interceptors.request.use((config) => {
     if (typeof document !== "undefined" && !config.headers['X-CSRFToken']) {
         const value = document.cookie
@@ -49,7 +47,6 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        // Block interceptor loops on auth routes
         if (
             originalRequest.url?.includes("accounts/token/refresh/") || 
             originalRequest.url?.includes("accounts/login/")
@@ -62,10 +59,7 @@ api.interceptors.response.use(
                 return new Promise<void>((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
                 })
-                .then(() => {
-                    // Added a 50ms delay to let the browser register the new cookie
-                    return new Promise(res => setTimeout(res, 50));
-                })
+                .then(() => new Promise(res => setTimeout(res, 50)))
                 .then(() => api(originalRequest))
                 .catch((err) => Promise.reject(err));
             }
@@ -74,13 +68,10 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                // Hits your CookieTokenRefreshView
                 await api.post("accounts/token/refresh/");
-                
                 isRefreshing = false;
                 processQueue(null);
                 
-                // Allow a tiny window for the browser to register the updated HttpOnly cookie
                 await new Promise(res => setTimeout(res, 50));
                 return api(originalRequest);
                 

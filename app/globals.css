@@ -10,7 +10,6 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   
-  /* Shared Registry Colors */
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -42,7 +41,6 @@
 
 @layer base {
   * {
-    
     border-color: var(--border);
   }
   
@@ -52,10 +50,10 @@
     overflow-x: hidden;
   }
   
- 
+  /* FIXED: Rewritten into a fixed structural execution overlay to resolve Leaflet stacking issues */
   [data-radix-portal] {
-    position: relative;
-    z-index: 9999 !important;
+    position: fixed !important;
+    z-index: 99999 !important;
   }
 }
 

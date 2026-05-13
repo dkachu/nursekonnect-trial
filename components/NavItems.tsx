@@ -5,13 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
-import { 
-  LogOut, 
-  Navigation,
-  ShieldCheck,
-  LayoutDashboard,
-  Activity
-} from "lucide-react";
 
 interface UserPayload {
   id: number;
@@ -26,38 +19,37 @@ interface Props {
   loggedinuser: UserPayload | null;
 }
 
-const NavItems = ({ mobile, loggedinuser }: Props) => {
+export default function NavItems({ mobile, loggedinuser }: Props) {
   const { logout } = useAuth();
   const pathname = usePathname();
 
   const isActive = (path: string) => pathname === path;
-  const linkStyle = "text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2.5 transition-all duration-300 italic";
+  const linkStyle = "text-[10px] font-black uppercase tracking-widest flex items-center transition-colors";
 
   return (
     <div className={cn(
       "flex items-center gap-8",
       mobile ? "flex-col w-full items-start gap-6" : "flex-row"
     )}>
-      
       {loggedinuser ? (
         <>
           <div className={cn(
             "flex gap-8", 
-            mobile ? "flex-col w-full border-b pb-8" : "flex-row items-center"
+            mobile ? "flex-col w-full border-b pb-6" : "flex-row items-center"
           )}>
             {loggedinuser.is_nurse && (
               <>
                 <Link href="/profile" className={cn(
                   linkStyle, 
-                  isActive("/profile") ? "text-primary" : "text-zinc-400 hover:text-foreground"
+                  isActive("/profile") ? "text-blue-600" : "text-zinc-400 hover:text-zinc-900"
                 )}>
-                  <LayoutDashboard size={15} /> Deployment Hub
+                  DEPLOYMENT HUB
                 </Link>
                 <Link href="/setup" className={cn(
                   linkStyle, 
-                  isActive("/setup") ? "text-primary" : "text-zinc-400 hover:text-foreground"
+                  isActive("/setup") ? "text-blue-600" : "text-zinc-400 hover:text-zinc-900"
                 )}>
-                  <ShieldCheck size={15} /> Credentials
+                  CREDENTIALS
                 </Link>
               </>
             )}
@@ -66,63 +58,54 @@ const NavItems = ({ mobile, loggedinuser }: Props) => {
               <>
                 <Link href="/dashboard" className={cn(
                   linkStyle, 
-                  isActive("/dashboard") ? "text-primary" : "text-zinc-400 hover:text-foreground"
+                  isActive("/dashboard") ? "text-blue-600" : "text-zinc-400 hover:text-zinc-900"
                 )}>
-                  <Activity size={15} /> Care Registry
+                  CARE REGISTRY
                 </Link>
                 <Link href="/nurses/nearby" className={cn(
                   linkStyle, 
-                  isActive("/nurses/nearby") ? "text-primary" : "text-zinc-400 hover:text-foreground"
+                  isActive("/nurses/nearby") ? "text-blue-600" : "text-zinc-400 hover:text-zinc-900"
                 )}>
-                  <Navigation size={15} /> Service Discovery
+                  SERVICE DISCOVERY
                 </Link>
               </>
             )}
           </div>
 
           <div className={cn(
-            "flex items-center gap-5", 
-            mobile ? "w-full justify-between pt-4" : "ml-4"
+            "flex items-center gap-6", 
+            mobile ? "w-full justify-between pt-2" : "ml-4"
           )}>
-            {!mobile && <div className="h-5 w-[1.5px] bg-border rotate-[20deg]" />}
-            
-            <div className="flex flex-col text-left md:text-right">
-              <span className="text-[11px] font-black text-foreground leading-none uppercase tracking-tighter italic">
-                {loggedinuser.email ? loggedinuser.email.split('@')[0] : "Authorized"}
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-black text-zinc-900 uppercase">
+                {loggedinuser.email ? loggedinuser.email.split('@')[0] : "AUTHORIZED"}
               </span>
-              <span className="text-[8px] font-bold text-primary uppercase tracking-[0.2em] mt-1.5 flex items-center md:justify-end gap-1">
-                {loggedinuser.is_nurse ? "Verified Professional" : "Care Recipient"}
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+              <span className="text-[8px] font-black text-zinc-400 uppercase tracking-wider mt-1">
+                {loggedinuser.is_nurse ? "PROFESSIONAL LEDGER" : "RECIPIENT"}
               </span>
             </div>
 
             <button 
               onClick={() => logout()} 
               className={cn(
-                "p-3 rounded-2xl transition-all active:scale-95 border",
-                mobile 
-                  ? "bg-zinc-950 text-white flex items-center gap-3 px-8 py-5 w-full justify-center border-zinc-800" 
-                  : "hover:bg-muted text-zinc-400 hover:text-destructive border-border"
+                "text-[10px] font-black uppercase tracking-widest transition-colors border-none cursor-pointer bg-transparent",
+                mobile ? "bg-zinc-950 text-white h-12 w-full rounded-xl hover:bg-zinc-900" : "text-zinc-400 hover:text-red-600"
               )}
-              aria-label="Terminate Session"
             >
-              <LogOut size={18} />
-              {mobile && <span className="font-black uppercase text-[10px] tracking-widest italic">Terminate Session</span>}
+              TERMINATE SESSION
             </button>
           </div>
         </>
       ) : (
         <Link href="/login" className={mobile ? "w-full" : "ml-4"}>
           <button className={cn(
-            "bg-primary text-white font-black text-[10px] uppercase tracking-[0.3em] transition-all hover:bg-zinc-950 active:scale-95 shadow-xl italic border-none",
-            mobile ? "w-full py-6 rounded-3xl" : "px-10 py-4 rounded-2xl"
+            "bg-blue-600 text-white font-black text-xs uppercase tracking-widest transition-colors hover:bg-zinc-950 border-none cursor-pointer",
+            mobile ? "w-full h-14 rounded-xl" : "h-11 px-8 rounded-lg"
           )}>
-            Registry Login
+            REGISTRY LOGIN
           </button>
         </Link>
       )}
     </div>
   );
-};
-
-export default NavItems;
+}

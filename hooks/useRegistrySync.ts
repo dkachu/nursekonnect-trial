@@ -3,16 +3,11 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 
-export const useRegistrySync = (onNewDispatch: () => void) => {
+export function useRegistrySync(onNewDispatch: () => void) {
   useEffect(() => {
-    // Protocol: handle dynamic environment routing for production SSL
     const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/";
     
-    /*
-     * Isolates the naked hostname (e.g., onrender.com) for ASGI bindings
-     * Strips the http/https protocol prefix and the trailing /api/ namespace suffix cleanly
-     */
     const baseHost = apiUrl
       .replace(/^https?:\/\//, "")
       .replace(/\/api\/?$/, "")
@@ -25,29 +20,34 @@ export const useRegistrySync = (onNewDispatch: () => void) => {
       try {
         const data = JSON.parse(event.data);
         
-        // Broadcast Handler: trigger notification for new registry requests
-        if (data.type === "BROADCAST" || data.action === "NEW_REQUEST") {
-          toast.info("New Hire Request Detected", {
-            description: "A patient in your zone requires clinical assistance."
-          });
+        if (data.type === "PERSONAL_ALERT" && data.payload) {
+          const action = data.payload.action;
+
+          if (action === "NEW_REQUEST") {
+            toast.info("NEW TASK RECEIVED", {
+              description: "A patient care request requires clinical evaluation."
+            });
+          } else if (action === "NURSE_ARRIVED") {
+            toast.success("PRACTITIONER ON-SITE", {
+              description: "Your assigned nurse has arrived at your location."
+            });
+          } else if (action?.startsWith("BOOKING_")) {
+            toast.success("DISPATCH RECORD STATE CHANGED");
+          }
+          
           onNewDispatch(); 
         }
-
-        // Personal Alert Handler: handle specific handshake updates
-        if (data.type === "PERSONAL_ALERT") {
-          onNewDispatch();
-        }
       } catch {
-        console.error("Registry pulse parsing error");
+        console.error("Pulse decoding loop failure");
       }
     };
 
     socket.onerror = () => {
-      console.warn("Registry WebSocket pulse offline");
+      console.warn("Telemetry socket fallback stream active");
     };
 
     return () => {
       socket.close();
     };
   }, [onNewDispatch]);
-};
+}

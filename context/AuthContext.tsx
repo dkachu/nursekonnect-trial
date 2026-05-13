@@ -59,7 +59,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
-  
   const didFetch = useRef(false);
 
   const refreshUser = useCallback(async (): Promise<UserDetails | null> => {
@@ -82,8 +81,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(mergedUser);
       return mergedUser;
     } catch (error: any) {
-      // NATIVE FIX: Only wipe user data if the server specifically rejects the token (401/403)
-      // Keeps users logged in if the server drops offline or throws a 500
       if (error.response?.status === 401 || error.response?.status === 403) {
         setUser(null);
       }
@@ -106,7 +103,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userData = await refreshUser();
       
       if (userData) {
-        // ENHANCEMENT: Checks for non-empty trimmed strings to prevent getting trapped by blank spaces
         const hasTown = userData.profile?.town && userData.profile.town.trim().length > 0;
         const hasBuilding = userData.profile?.building && userData.profile.building.trim().length > 0;
         const isOnboarded = !!(hasTown || hasBuilding);
@@ -117,7 +113,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           router.push(userData.is_nurse ? "/profile" : "/dashboard");
         }
         
-        toast.success("Identity Verified", { description: "Registry Connection Successful" });
+        toast.success("Authentication Verified");
         return { success: true };
       }
       return { success: false };
@@ -129,7 +125,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   axiosError.response?.data?.non_field_errors?.[0] || 
                   message;
       }
-      toast.error("Handshake Failed", { description: message });
+      toast.error("Operation Rejected", { description: message });
       return { success: false, error: message };
     }
   }, [refreshUser, router]);
@@ -155,7 +151,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           firstError = String(Object.values(serverErrors).flat()[0] || firstError);
         }
       }
-      toast.error("Handshake Failed", { description: firstError });
+      toast.error("Operation Rejected", { description: firstError });
       return { success: false, error: firstError };
     }
   }, [login]);
@@ -164,7 +160,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try { 
       await api.post("accounts/logout/"); 
     } catch { 
-      console.warn("Clearing local session state"); 
+      console.warn("Clearing session state"); 
     }
     setUser(null);
     router.push("/login");
@@ -189,14 +185,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       {!loading ? (
         children
       ) : (
-        <div className="h-screen w-full flex flex-col items-center justify-center bg-background gap-8">
-          <div className="relative">
-            <div className="w-16 h-16 border-[3px] border-border border-t-primary rounded-full animate-spin"></div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-foreground rounded-full animate-pulse"></div>
-          </div>
-          <div className="text-center space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-[0.4em] italic">NurseKonnekt</p>
-            <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest animate-pulse">Initialising Handshake...</p>
+        <div className="h-screen w-full flex flex-col items-center justify-center bg-background">
+          <div className="text-center">
+            <p className="font-bold text-zinc-400 uppercase tracking-widest animate-pulse">Initializing Handshake...</p>
           </div>
         </div>
       )}

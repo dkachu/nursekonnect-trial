@@ -1,19 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { Ubuntu, Geist } from "next/font/google";
 import "./globals.css";
-import "leaflet/dist/leaflet.css";
 
-import Footer from "@/components/footer/Footer";
+import Footer from "@/components/marketing/Footer";
 import NavBarContainer from "@/components/NavBarContainer";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/context/AuthContext"; 
 import { cn } from "@/lib/utils";
 
-/**
- * Registry Font Configuration
- * geistSans: Industrial utility
- * ubuntu: Medical clean
- */
 const geistSans = Geist({
   subsets: ['latin'],
   variable: '--font-geist-sans'
@@ -53,14 +47,10 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className={cn(
-        "min-h-screen bg-background font-sans antialiased selection:bg-primary/10 selection:text-primary",
+        "min-h-screen bg-background font-sans antialiased",
         ubuntu.className
       )}>
-        
-        {/* Identity & Protocol Provider */}
         <AuthProvider>
-          
-          {/* Registry Notification Ledger */}
           <Toaster 
             position="top-center" 
             richColors 
@@ -68,25 +58,19 @@ export default function RootLayout({
             closeButton 
             toastOptions={{
               style: {
-                borderRadius: '1.5rem',
-                padding: '1.25rem 1.5rem',
-                border: '1px solid hsl(var(--border))',
-                background: 'hsl(var(--background))',
+                borderRadius: '1rem',
+                padding: '1rem',
                 fontFamily: 'var(--font-ubuntu)'
               },
-              className: "font-black uppercase text-[10px] tracking-widest italic",
+              className: "font-bold uppercase text-[10px] tracking-widest",
             }}
           />
           
           <div className="relative flex flex-col min-h-screen overflow-x-hidden">
-            {/* Real-time Navigation Handshake */}
             <NavBarContainer />
-            
             <main className="flex-grow">
               {children}
             </main>
-            
-            {/* Legal & Social Footer */}
             <Footer />
           </div>
         </AuthProvider>

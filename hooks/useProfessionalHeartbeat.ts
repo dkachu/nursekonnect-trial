@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import api from "@/lib/api";
 
-export const useProfessionalHeartbeat = (isNurse: boolean, isOnline: boolean) => {
+export function useProfessionalHeartbeat(isNurse: boolean, isOnline: boolean) {
   useEffect(() => {
     if (!isNurse || !isOnline) return;
 
@@ -19,10 +19,10 @@ export const useProfessionalHeartbeat = (isNurse: boolean, isOnline: boolean) =>
               is_available: true 
             });
           } catch { 
-            console.error("Registry pulse signal interrupted"); 
+            console.error("Pulse transmission failed"); 
           }
         },
-        () => console.warn("Satellite link acquisition failed"),
+        () => console.warn("GPS synchronization lost"),
         geoOptions
       );
     };
@@ -31,4 +31,4 @@ export const useProfessionalHeartbeat = (isNurse: boolean, isOnline: boolean) =>
     const interval = setInterval(pulse, 600000); 
     return () => clearInterval(interval);
   }, [isNurse, isOnline]);
-};
+}
