@@ -7,7 +7,6 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldAlert, Loader2, CheckCircle2, MapPin, ShieldCheck, Briefcase, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface NurseProfilePayload {
@@ -41,8 +40,6 @@ export default function NurseProfileForm({ initialData, onSuccess }: NurseFormPr
     building: "",
   });
 
-  // FIXED: Implemented a strict useRef barrier layout protection gate. This guarantees that 
-  // form population triggers exactly once on component mount, eliminating cascading render loops.
   useEffect(() => {
     if (initialData && !hasInitialized.current) {
       setFormData({
@@ -60,7 +57,7 @@ export default function NurseProfileForm({ initialData, onSuccess }: NurseFormPr
   const handleGPSSync = () => {
     if (!navigator.geolocation) return toast.error("GPS hardware missing.");
     setIsSyncing(true);
-    const syncToast = toast.loading("Establishing Satellite Handshake...");
+    const syncToast = toast.loading("Establishing GPS connection...");
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -78,17 +75,17 @@ export default function NurseProfileForm({ initialData, onSuccess }: NurseFormPr
               building: updated.profile?.building || f.building 
             }));
           }
-          toast.success("GPS Lock Synchronised", { id: syncToast });
+          toast.success("GPS data synchronized", { id: syncToast });
         } catch (err) { 
-          toast.error("Registry mapping refused.", { id: syncToast }); 
-          print(err);
+          toast.error("Telemetry update rejected", { id: syncToast }); 
+          console.error(err);
         } finally { 
           setIsSyncing(false); 
         }
       },
       () => { 
         setIsSyncing(false); 
-        toast.error("Satellite Signal Timeout", { id: syncToast }); 
+        toast.error("GPS connection timeout", { id: syncToast }); 
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
@@ -99,7 +96,7 @@ export default function NurseProfileForm({ initialData, onSuccess }: NurseFormPr
     setLoading(true);
     try {
       await api.patch("accounts/profile/update/", formData);
-      toast.success("Registry Updated");
+      toast.success("Profile records updated");
       await refreshUser(); 
       setIsSuccess(true);
       setTimeout(() => {
@@ -107,69 +104,89 @@ export default function NurseProfileForm({ initialData, onSuccess }: NurseFormPr
         else router.push("/profile");
       }, 2000);
     } catch { 
-      toast.error("Update Refused: Check Credentials"); 
+      toast.error("Operation rejected: verify attributes"); 
     } finally { 
       setLoading(false); 
     }
   };
 
   if (isSuccess) return (
-    <div className="bg-white p-12 rounded-[3.5rem] border border-green-100 text-center space-y-4 italic shadow-2xl">
-      <div className="w-20 h-20 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto border border-green-100">
-        <CheckCircle2 size={40} />
-      </div>
-      <h3 className="text-3xl font-black text-zinc-900 uppercase tracking-tighter italic">Lock Confirmed</h3>
-      <p className="text-zinc-500 font-medium text-xs leading-relaxed uppercase tracking-widest italic">
-        Profile Synchronised. Entering Ledger...
+    <div className="bg-white p-12 rounded-3xl border border-zinc-100 text-center space-y-4 shadow-xl">
+      <h3 className="text-2xl font-black uppercase tracking-tighter text-zinc-900">Synchronization Confirmed</h3>
+      <p className="text-zinc-500 font-medium text-xs uppercase tracking-widest">
+        Profile secure. Redirecting to workspace...
       </p>
     </div>
   );
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white p-8 space-y-8 animate-in fade-in">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b pb-8">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] italic">
-            <ShieldAlert size={14} /> Professional Protocol Active
-          </div>
-          <h3 className="text-4xl font-black text-zinc-900 tracking-tighter uppercase italic">
-            Verify <span className="text-blue-600">Credentials</span>
+    <form onSubmit={handleSubmit} className="bg-white p-8 space-y-8 rounded-3xl border">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b pb-6">
+        <div>
+          <span className="text-[10px] font-bold text-zinc-400 block uppercase tracking-widest">PHASE 02</span>
+          <h3 className="text-2xl font-black text-zinc-900 uppercase tracking-tighter">
+            Credential Verification
           </h3>
         </div>
-        <Button type="button" onClick={handleGPSSync} disabled={isSyncing} variant="outline" className="rounded-2xl py-6 px-8 font-black text-[10px] uppercase tracking-widest gap-2 border-2 border-blue-50 text-blue-600 italic transition-all active:scale-95">
-          {isSyncing ? <Loader2 className="animate-spin" size={16}/> : <MapPin size={16}/>}
-          {isSyncing ? "Locking..." : "Sync GPS"}
+        <Button 
+          type="button" 
+          onClick={handleGPSSync} 
+          disabled={isSyncing || loading} 
+          className="rounded-xl h-12 px-6 font-black text-xs uppercase tracking-widest bg-zinc-950 text-white border-none"
+        >
+          {isSyncing ? "SYNCHRONIZING..." : "SYNCHRONIZE GPS"}
         </Button>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <Label className="flex items-center gap-2 font-black text-zinc-400 uppercase text-[9px] px-1 italic">
-            <ShieldCheck size={14} className="text-blue-600" /> NCK License
-          </Label>
-          <Input required className="rounded-xl h-14 bg-zinc-50 font-bold text-sm" value={formData.license_number} onChange={(e) => setFormData({...formData, license_number: e.target.value})} />
+          <Label className="font-black text-zinc-400 uppercase text-[9px] tracking-widest block">NCK License Identifier</Label>
+          <Input 
+            required 
+            disabled={loading}
+            className="rounded-xl h-14 bg-zinc-50 font-bold text-sm border-zinc-100" 
+            value={formData.license_number} 
+            onChange={(e) => setFormData({...formData, license_number: e.target.value})} 
+          />
         </div>
         <div className="space-y-2">
-          <Label className="flex items-center gap-2 font-black text-zinc-400 uppercase text-[9px] px-1 italic">
-            <Briefcase size={14} className="text-blue-600" /> KRA PIN
-          </Label>
-          <Input required className="rounded-xl h-14 bg-zinc-50 font-bold uppercase text-sm" value={formData.kra_pin} onChange={(e) => setFormData({...formData, kra_pin: e.target.value.toUpperCase()})} />
+          <Label className="font-black text-zinc-400 uppercase text-[9px] tracking-widest block">KRA PIN Certificate</Label>
+          <Input 
+            required 
+            disabled={loading}
+            className="rounded-xl h-14 bg-zinc-50 font-bold uppercase text-sm border-zinc-100" 
+            value={formData.kra_pin} 
+            onChange={(e) => setFormData({...formData, kra_pin: e.target.value.toUpperCase()})} 
+          />
         </div>
         <div className="space-y-2">
-          <Label className="flex items-center gap-2 font-black text-zinc-400 uppercase text-[9px] px-1 italic">
-            <MapPin size={14} className="text-blue-600" /> Current Town
-          </Label>
-          <Input required className="rounded-xl h-14 bg-zinc-50 font-bold text-sm" value={formData.town} onChange={(e) => setFormData({...formData, town: e.target.value})} />
+          <Label className="font-black text-zinc-400 uppercase text-[9px] tracking-widest block">Operational Base Town</Label>
+          <Input 
+            required 
+            disabled={loading}
+            className="rounded-xl h-14 bg-zinc-50 font-bold text-sm border-zinc-100" 
+            value={formData.town} 
+            onChange={(e) => setFormData({...formData, town: e.target.value})} 
+          />
         </div>
         <div className="space-y-2">
-          <Label className="flex items-center gap-2 font-black text-zinc-400 uppercase text-[9px] px-1 italic">
-            <Building2 size={14} className="text-blue-600" /> Base Facility
-          </Label>
-          <Input required className="rounded-xl h-14 bg-zinc-50 font-bold text-sm" value={formData.building} onChange={(e) => setFormData({...formData, building: e.target.value})} />
+          <Label className="font-black text-zinc-400 uppercase text-[9px] tracking-widest block">Base Facility / Building Name</Label>
+          <Input 
+            required 
+            disabled={loading}
+            className="rounded-xl h-14 bg-zinc-50 font-bold text-sm border-zinc-100" 
+            value={formData.building} 
+            onChange={(e) => setFormData({...formData, building: e.target.value})} 
+          />
         </div>
       </div>
-      <Button type="submit" disabled={loading} className="w-full rounded-[2rem] h-20 bg-zinc-950 hover:bg-blue-600 font-black text-xs uppercase tracking-[0.3em] gap-3 italic transition-all shadow-xl active:scale-95">
-        {loading ? <Loader2 className="animate-spin" size={20} /> : <ShieldCheck size={20} />}
-        {loading ? "Verifying..." : "Finalise Professional Enrolment"}
+
+      <Button 
+        type="submit" 
+        disabled={loading || isSyncing} 
+        className="w-full rounded-xl h-16 bg-blue-600 text-white font-black text-xs uppercase tracking-widest border-none"
+      >
+        {loading ? "PROCESSING..." : "FINALIZE PROFESSIONAL ENROLMENT"}
       </Button>
     </form>
   );
