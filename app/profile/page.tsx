@@ -25,7 +25,7 @@ export default function NurseDashboard() {
     } catch {
       console.error("Professional KPI sync failure");
     } finally {
-      // FIXED: Swapped 'bits' with 'finally' to prevent the ECMAScript compilation break
+      // FIXED: Restored valid language syntax structure to clear the compilation crash
       setStatsLoading(false);
     }
   }, []);

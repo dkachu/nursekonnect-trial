@@ -11,7 +11,7 @@ import PatientProfileForm from "@/components/dashboard/PatientProfileForm";
 
 /**
  * NURSEKONNEKT PROFILE SETUP
- * Enforces mandatory spatial sync and credentialing before hub entry.
+ * Enforces mandatory metadata synchronization before hub entry.
  */
 export default function ProfileSetupPage() {
   const { user, loading, isNurse, isSynced } = useAuth();
