@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,30 +10,40 @@ import Link from "next/link";
 import { Mail, Lock, Loader2, ShieldCheck, ArrowRight, Activity, Zap } from "lucide-react";
 import { toast } from "sonner";
 
-export default function LoginPage() {
+function LoginContent() {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [localLoading, setLocalLoading] = useState<boolean>(false);
   
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, login, loading: authLoading, isNurse } = useAuth();
+
+  // Extract the callback parameter appended by the Next.js edge middleware
+  const callbackUrl = searchParams.get("callbackUrl");
 
   useEffect(() => {
     /**
      * Registry Guard Logic
-     * FIXED: Explicitly checks the user.profile key block to satisfy 
+     * Explicitly checks the user.profile key block to satisfy 
      * the strict UserProfile type definition contract and pass Vercel checks.
      */
     if (!authLoading && user) {
+      // 1. If a secure callback path exists from a middleware intercept, honor it immediately
+      if (callbackUrl) {
+        router.replace(callbackUrl);
+        return;
+      }
+
+      // 2. Standard initial entry-point dashboard evaluation routing fallback
       const isConfigured = !!(user.profile?.town || user.profile?.building);
-      
       if (!isConfigured) {
         router.replace("/setup");
       } else {
         router.replace(isNurse ? "/profile" : "/dashboard");
       }
     }
-  }, [user, authLoading, isNurse, router]);
+  }, [user, authLoading, isNurse, router, callbackUrl]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -134,5 +144,18 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Next.js App Router requires useSearchParams to be wrapped in a Suspense boundary
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export default function RegisterPage() {
-  const { register, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const { user, register, loading: authLoading, isNurse } = useAuth();
   const [localLoading, setLocalLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -21,6 +23,19 @@ export default function RegisterPage() {
     is_nurse: false,
     is_patient: false,
   });
+
+  // FIXED: Auto-routing listener intercepts the state change once registration auto-logs the user in
+  useEffect(() => {
+    if (!authLoading && user) {
+      const isConfigured = !!(user.profile?.town || user.profile?.building);
+      
+      if (!isConfigured) {
+        router.replace("/setup");
+      } else {
+        router.replace(isNurse ? "/profile" : "/dashboard");
+      }
+    }
+  }, [user, authLoading, isNurse, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,10 +87,11 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid grid-cols-2 gap-4">
              <div 
-                onClick={() => setFormData({ ...formData, is_nurse: true, is_patient: false })}
+                onClick={() => !isLoading && setFormData({ ...formData, is_nurse: true, is_patient: false })}
                 className={cn(
                     "cursor-pointer p-6 rounded-3xl border-2 transition-all duration-500 flex flex-col items-center gap-3 relative overflow-hidden",
-                    formData.is_nurse ? "border-primary bg-blue-50 shadow-xl" : "border-zinc-50 bg-zinc-50 hover:border-zinc-200"
+                    formData.is_nurse ? "border-primary bg-blue-50 shadow-xl" : "border-zinc-50 bg-zinc-50 hover:border-zinc-200",
+                    isLoading && "opacity-50 cursor-not-allowed"
                 )}
              >
                 <div className={cn("p-4 rounded-2xl transition-all", formData.is_nurse ? "bg-primary text-white shadow-lg" : "bg-white text-zinc-300")}>
@@ -85,10 +101,11 @@ export default function RegisterPage() {
              </div>
 
              <div 
-                onClick={() => setFormData({ ...formData, is_nurse: false, is_patient: true })}
+                onClick={() => !isLoading && setFormData({ ...formData, is_nurse: false, is_patient: true })}
                 className={cn(
                     "cursor-pointer p-6 rounded-3xl border-2 transition-all duration-500 flex flex-col items-center gap-3 relative overflow-hidden",
-                    formData.is_patient ? "border-primary bg-blue-50 shadow-xl" : "border-zinc-50 bg-zinc-50 hover:border-zinc-200"
+                    formData.is_patient ? "border-primary bg-blue-50 shadow-xl" : "border-zinc-50 bg-zinc-50 hover:border-zinc-200",
+                    isLoading && "opacity-50 cursor-not-allowed"
                 )}
              >
                 <div className={cn("p-4 rounded-2xl transition-all", formData.is_patient ? "bg-primary text-white shadow-lg" : "bg-white text-zinc-300")}>

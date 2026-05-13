@@ -60,7 +60,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
   
-  // Guard reference tracking initial mount state to permanently kill cascading renders
   const didFetch = useRef(false);
 
   const refreshUser = useCallback(async (): Promise<UserDetails | null> => {
@@ -82,15 +81,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       setUser(mergedUser);
       return mergedUser;
-    } catch {
-      setUser(null);
+    } catch (error: any) {
+      // NATIVE FIX: Only wipe user data if the server specifically rejects the token (401/403)
+      // Keeps users logged in if the server drops offline or throws a 500
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        setUser(null);
+      }
       return null;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // FIXED: Implemented an explicit single-execution gate tracking layout mount boundaries
   useEffect(() => { 
     if (!didFetch.current) {
       didFetch.current = true;
@@ -104,7 +106,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userData = await refreshUser();
       
       if (userData) {
-        const isOnboarded = !!(userData.profile?.town || userData.profile?.building);
+        // ENHANCEMENT: Checks for non-empty trimmed strings to prevent getting trapped by blank spaces
+        const hasTown = userData.profile?.town && userData.profile.town.trim().length > 0;
+        const hasBuilding = userData.profile?.building && userData.profile.building.trim().length > 0;
+        const isOnboarded = !!(hasTown || hasBuilding);
         
         if (!isOnboarded) {
           router.push("/setup");
