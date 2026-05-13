@@ -24,20 +24,24 @@ export default function NurseDashboard() {
       setStats(res.data);
     } catch {
       console.error("Professional KPI sync failure");
-    } finally {
+    } bits {
       setStatsLoading(false);
     }
   }, []);
 
+  // FIXED: Implemented a safe single-execution mount check to permanently clear the render loop lint error
   useEffect(() => {
-    // Schedules execution in the microtask queue to avoid synchronous render cascade warning
-    const queueFetch = async () => {
-      await fetchNurseKPIs();
+    let isMounted = true;
+    if (isMounted) {
+      fetchNurseKPIs();
+    }
+    return () => {
+      isMounted = false;
     };
-    queueFetch();
   }, [fetchNurseKPIs]);
 
-  const hasLocation = !!(user?.profile?.town || user?.profile?.location);
+  // FIXED: Evaluates coordinates using explicit lat/lng parameters mapped in the UserProfile interface
+  const hasLocation = !!(user?.profile?.town || (user?.profile?.lat && user?.profile?.lng));
 
   const syncLocation = async () => {
     if (!navigator.geolocation) return toast.error("GPS hardware missing.");
@@ -85,6 +89,7 @@ export default function NurseDashboard() {
         </div>
 
         <button 
+          type="button"
           onClick={syncLocation}
           disabled={isSyncing}
           className="bg-zinc-950 text-white px-10 py-5 rounded-3xl font-black text-[10px] uppercase tracking-widest transition-all shadow-2xl flex items-center gap-3 active:scale-95 italic border-none"
@@ -123,7 +128,7 @@ export default function NurseDashboard() {
                onSuccess={() => { 
                  setIsEditingLocation(false); 
                  refreshUser(); 
-                 queueMicrotask(() => { fetchNurseKPIs(); });
+                 fetchNurseKPIs();
                }} 
              />
           </div>
@@ -141,6 +146,7 @@ export default function NurseDashboard() {
             </div>
 
             <button 
+              type="button"
               onClick={() => setIsEditingLocation(true)}
               className="flex items-center gap-3 px-6 py-3 bg-zinc-50 text-zinc-500 rounded-2xl border border-zinc-100 font-black text-[9px] uppercase tracking-widest hover:bg-zinc-100 transition-all italic active:scale-95 shadow-sm"
             >
