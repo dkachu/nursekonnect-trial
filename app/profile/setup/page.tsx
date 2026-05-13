@@ -17,7 +17,11 @@ export default function ProfileSetupPage() {
   const { user, loading, isNurse, isSynced } = useAuth();
   const router = useRouter();
 
- 
+  /**
+   * Configuration Audit
+   * FIXED: Explicit type-safe verification checking parameters directly 
+   * inside the nested user.profile layer to satisfy TypeScript and pass Vercel.
+   */
   const isConfigured = useMemo(() => {
     if (!user?.profile) return false;
     return !!(user.profile.town && user.profile.building && isSynced);
