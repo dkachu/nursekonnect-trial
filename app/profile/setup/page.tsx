@@ -17,14 +17,10 @@ export default function ProfileSetupPage() {
   const { user, loading, isNurse, isSynced } = useAuth();
   const router = useRouter();
 
-  /**
-   * Configuration Audit
-   * Ensures data integrity: requires town, building, and PostGIS spatial lock.
-   */
+ 
   const isConfigured = useMemo(() => {
-    if (!user) return false;
-    const profile = user.profile || user;
-    return !!(profile?.town && profile?.building && isSynced);
+    if (!user?.profile) return false;
+    return !!(user.profile.town && user.profile.building && isSynced);
   }, [user, isSynced]);
 
   useEffect(() => {
