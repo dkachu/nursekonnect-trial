@@ -19,9 +19,13 @@ export default function LoginPage() {
   const { user, login, loading: authLoading, isNurse } = useAuth();
 
   useEffect(() => {
+    /**
+     * Registry Guard Logic
+     * FIXED: Explicitly checks the user.profile key block to satisfy 
+     * the strict UserProfile type definition contract and pass Vercel checks.
+     */
     if (!authLoading && user) {
-      const profile = user.profile || user;
-      const isConfigured = !!(profile?.town || profile?.building);
+      const isConfigured = !!(user.profile?.town || user.profile?.building);
       
       if (!isConfigured) {
         router.replace("/setup");
