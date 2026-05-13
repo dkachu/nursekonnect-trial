@@ -42,7 +42,7 @@ export default function NearbyNursesPage() {
   }, [user, authLoading]);
 
   if (authLoading || fetching) return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-white transition-all">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white transition-all">
       <div className="relative">
         <Loader2 className="animate-spin text-primary" size={48} />
         <Zap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-zinc-950" size={16} />
@@ -54,8 +54,8 @@ export default function NearbyNursesPage() {
     </div>
   );
 
-  const profile = user?.profile || user;
-  if (!nurses.length && !profile?.town) {
+  // FIXED: Explicitly evaluates the structural user.profile layer to pass compiler checks
+  if (!nurses.length && !user?.profile?.town) {
     return (
       <div className="max-w-xl mx-auto p-16 mt-24 text-center space-y-8 bg-white rounded-[3.5rem] border border-zinc-100 shadow-2xl">
         <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto">
@@ -88,7 +88,10 @@ export default function NearbyNursesPage() {
                 <p className="text-2xl font-black text-white tracking-tighter italic">50.0 <span className="text-[10px] text-zinc-500 uppercase ml-1">KM</span></p>
             </div>
             <div className="h-8 w-[1px] bg-zinc-800 rotate-[20deg]" />
-            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{nurses.length} Professionals</p>
+            {/* FIXED: Added defensive optional chaining matching spatial metadata layout structures */}
+            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">
+              {nurses.length} Professionals found near {user?.profile?.town || 'your zone'}
+            </p>
         </div>
       </header>
 
