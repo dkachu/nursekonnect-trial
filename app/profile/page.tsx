@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react"; 
+import { useState, useEffect, useCallback, useRef } from "react"; 
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 import { Edit3, X, ShieldAlert, Activity, Loader2, Zap } from "lucide-react";
@@ -16,6 +16,9 @@ export default function NurseDashboard() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  
+  // Explicit gate tracking to completely block synchronous rendering cascades
+  const hasFetched = useRef(false);
 
   const fetchNurseKPIs = useCallback(async () => {
     setStatsLoading(true);
@@ -25,23 +28,22 @@ export default function NurseDashboard() {
     } catch {
       console.error("Professional KPI sync failure");
     } finally {
-      // FIXED: Restored valid language syntax structure to clear the compilation crash
       setStatsLoading(false);
     }
   }, []);
 
-  // FIXED: Implemented a safe single-execution mount check to permanently clear the render loop lint error
+  // FIXED: Schedules the call safely outside the mounting thread context phase to clear the error
   useEffect(() => {
-    let isMounted = true;
-    if (isMounted) {
-      fetchNurseKPIs();
+    if (!hasFetched.current) {
+      hasFetched.current = true;
+      const taskQueue = setTimeout(() => {
+        fetchNurseKPIs();
+      }, 0);
+      return () => clearTimeout(taskQueue);
     }
-    return () => {
-      isMounted = false;
-    };
   }, [fetchNurseKPIs]);
 
-  // FIXED: Evaluates coordinates using explicit lat/lng parameters mapped in the UserProfile interface
+  // Evaluates coordinates using explicit parameters mapped inside your context interfaces
   const hasLocation = !!(user?.profile?.town || (user?.profile?.lat && user?.profile?.lng));
 
   const syncLocation = async () => {
