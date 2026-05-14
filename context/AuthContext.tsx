@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -141,6 +141,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await api.post("accounts/register/", { 
         email, password, phone_number, is_nurse, is_patient 
       });
+      
+      // FIXED: Lightweight timeout sleep allows PostGIS database transaction writes and signal profiles to settle completely
+      await new Promise((res) => setTimeout(res, 400));
       return await login(email, password);
     } catch (error: unknown) {
       let firstError = "Enrolment refused.";
@@ -160,7 +163,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try { 
       await api.post("accounts/logout/"); 
     } catch { 
-      console.warn("Clearing session state"); 
+      print("Clearing session state"); 
     }
     setUser(null);
     router.push("/login");
@@ -185,7 +188,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       {!loading ? (
         children
       ) : (
-        <div className="h-screen w-full flex flex-col items-center justify-center bg-background">
+        <div className="h-screen w-full flex flex-col items-center justify-center bg-white">
           <div className="text-center">
             <p className="font-bold text-zinc-400 uppercase tracking-widest animate-pulse">Initializing Handshake...</p>
           </div>
