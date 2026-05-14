@@ -3,14 +3,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react"; 
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
-import { MapPin, Activity, Loader2, Zap, LayoutDashboard, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
-
+import AppointmentsList from "@/components/dashboard/AppointmentsList";
 import PatientStats from "@/components/dashboard/PatientStats";
 import BookingModal from "@/components/dashboard/BookingModal";
-import { useBookingSocket } from "@/hooks/useBookingSocket"; // INGESTION: Link real-time socket layer
-import AppointmentsList from "@/components/dashboard/AppointmentsList";
-
+import { useBookingSocket } from "@/hooks/useBookingSocket";
 
 interface Nurse {
   id: number;
@@ -31,17 +28,13 @@ interface PatientStatsPayload {
 export default function PatientDashboardPage() {
   const { user, loading, refreshUser } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
-  
   const [stats, setStats] = useState<PatientStatsPayload | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
-  
   const [nurses, setNurses] = useState<Nurse[]>([]);
   const [nursesLoading, setNursesLoading] = useState(false);
   const [radius, setRadius] = useState<number>(25);
-  
   const [selectedNurse, setSelectedNurse] = useState<{ id: number; name: string } | null>(null);
   const [isBookingOpen, setIsBookingOpen] = useState<boolean>(false);
-  
   const didFetchInitial = useRef(false);
 
   const fetchKPIs = useCallback(async () => {
@@ -56,7 +49,7 @@ export default function PatientDashboardPage() {
         });
       }
     } catch {
-      console.error("Registry KPI Synchronization Failed.");
+      console.error("KPI Sync Failed.");
     } finally {
       setStatsLoading(false);
     }
@@ -81,26 +74,21 @@ export default function PatientDashboardPage() {
       });
       setNurses(Array.isArray(res.data) ? res.data : []);
     } catch {
-      toast.error("Proximity scanning failed", { description: "Verify backend spatial configurations." });
+      toast.error("Scanning failed");
     } finally {
       setNursesLoading(false);
     }
   }, [user?.profile?.lat, user?.profile?.lng, radius]);
 
-
   const handleLiveUpdates = useCallback((message: any) => {
-    console.log("📡 [Dashboard Signal Received]:", message);
-    
-    // Intercept state alerts dispatched directly from your Python BookingConsumer
     if (["NEW_DISPATCH_REQUESTED", "BOOKING_CONFIRMED", "LOCATION_UPDATED"].includes(message.type)) {
-      fetchKPIs(); // Refresh numerical KPI metrics instantly
+      fetchKPIs();
       if (message.type === "BOOKING_CONFIRMED") {
-        toast.info("Dispatch Acknowledged", { description: "A professional accepted your request live." });
+        toast.info("Dispatch Acknowledged");
       }
     }
   }, [fetchKPIs]);
 
-  // Bind background pipeline connection strings seamlessly
   const { isConnected } = useBookingSocket(handleLiveUpdates);
 
   useEffect(() => {
@@ -119,11 +107,11 @@ export default function PatientDashboardPage() {
 
   const syncLocation = () => {
     if (typeof window === "undefined" || !navigator.geolocation) {
-      return toast.error("Hardware Limitation", { description: "GPS hardware module is missing or unauthorized." });
+      return toast.error("Hardware Limitation");
     }
     
     setIsSyncing(true);
-    const syncToast = toast.loading("Locking local geographic coordinates...");
+    const syncToast = toast.loading("Locking coordinates...");
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -132,18 +120,18 @@ export default function PatientDashboardPage() {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
           });
-          toast.success("Home Coordinates Locked", { id: syncToast });
+          toast.success("Coordinates Locked", { id: syncToast });
           await refreshUser();
           await fetchNearbyNurses(); 
         } catch {
-          toast.error("Telemetry Sync Failed", { id: syncToast });
+          toast.error("Sync Failed", { id: syncToast });
         } finally {
           setIsSyncing(false);
         }
       },
       (error) => { 
         setIsSyncing(false); 
-        toast.error("GPS Authorization Denied", { id: syncToast, description: error.message }); 
+        toast.error("Denied", { id: syncToast, description: error.message }); 
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
@@ -158,9 +146,8 @@ export default function PatientDashboardPage() {
   if (loading || !user) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-white gap-4">
-        <Loader2 className="animate-spin text-blue-600" size={40} />
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 animate-pulse">
-          Synchronising Registry Handshake...
+        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+          Syncing...
         </p>
       </div>
     );
@@ -170,13 +157,12 @@ export default function PatientDashboardPage() {
 
   return (
     <main className="max-w-7xl mx-auto p-6 lg:p-12 space-y-16 min-h-screen font-sans bg-white">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 border-b border-dashed border-zinc-100 pb-12">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 border-b border-zinc-100 pb-12">
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] italic select-none">
-            <Activity size={12} className={isConnected ? "animate-pulse text-green-500" : "animate-pulse"} /> 
+          <div className="text-blue-600 font-black text-[10px] uppercase tracking-widest italic">
             Care Command Center {isConnected ? "• LIVE" : "• SYNCING"}
           </div>
-          <h1 className="text-4xl md:text-6xl font-black text-zinc-900 tracking-tighter uppercase italic leading-none select-none">
+          <h1 className="text-4xl md:text-6xl font-black text-zinc-900 tracking-tighter uppercase italic leading-none">
             Hello, <span className="text-blue-600 not-italic">{clientName}</span>
           </h1>
         </div>
@@ -186,24 +172,21 @@ export default function PatientDashboardPage() {
           disabled={isSyncing} 
           className="bg-zinc-950 hover:bg-blue-600 text-white px-8 h-16 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 transition-all duration-200 active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 w-full md:w-auto border-none"
         >
-          {isSyncing ? <Loader2 className="animate-spin" size={14} /> : <MapPin size={14} />}
           {isSyncing ? "LOCKING SATELLITES..." : "UPDATE HOME COORDINATES"}
         </button>
       </header>
 
-      {/* Numerical Metrics Component Layer Container Grid */}
       <PatientStats stats={stats} loading={statsLoading} />
 
       <section className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-          <div className="flex items-center gap-2.5 select-none">
-            <MapPin size={16} className="text-blue-600 animate-bounce" />
-            <h2 className="text-xs font-black uppercase tracking-[0.25em] text-zinc-900 italic">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-xs font-black uppercase tracking-widest text-zinc-900 italic">
               Nearby Active Practitioners Available
             </h2>
           </div>
           
-          <div className="flex items-center gap-2 bg-zinc-50 px-4 py-2.5 rounded-2xl border border-zinc-100 select-none">
+          <div className="flex items-center gap-2 bg-zinc-50 px-4 py-2.5 rounded-2xl border border-zinc-100">
             <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Search Range:</label>
             <select 
               value={radius} 
@@ -220,15 +203,11 @@ export default function PatientDashboardPage() {
 
         {nursesLoading ? (
           <div className="h-48 border border-dashed border-zinc-200 rounded-[2rem] flex items-center justify-center bg-zinc-50/50">
-            <div className="flex flex-col items-center gap-2 text-zinc-400 font-bold text-xs uppercase tracking-wider">
-              <Loader2 className="animate-spin text-blue-600" size={24} />
-              <span>Scanning Proximity Sockets...</span>
-            </div>
+            <span className="text-zinc-400 font-bold text-xs uppercase">Scanning...</span>
           </div>
         ) : nurses.length === 0 ? (
           <div className="h-48 border border-dashed border-zinc-200 rounded-[2rem] flex flex-col items-center justify-center bg-zinc-50/50 p-6 text-center">
-            <p className="text-xs font-black text-zinc-400 uppercase tracking-wide">No Medical Practitioners Found</p>
-            <p className="text-[10px] text-zinc-400 mt-1 uppercase font-bold">Try expanding your search range radius criteria.</p>
+            <p className="text-xs font-black text-zinc-400 uppercase tracking-wide">No Practitioners Found</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -249,9 +228,9 @@ export default function PatientDashboardPage() {
                   </div>
                   
                   <div className="text-[11px] font-medium text-zinc-500 space-y-1 bg-zinc-50 p-4 rounded-xl font-mono">
-                    <p>📍 Town: {nurse.town}</p>
-                    <p>🏢 Block: {nurse.building}</p>
-                    <p className="text-blue-600 font-bold">📏 Distance: {nurse.distance}</p>
+                    <p>Town: {nurse.town}</p>
+                    <p>Block: {nurse.building}</p>
+                    <p className="text-blue-600 font-bold">Distance: {nurse.distance}</p>
                   </div>
 
                   <button
@@ -267,17 +246,15 @@ export default function PatientDashboardPage() {
         )}
       </section>
 
-      {/* Active Appointments Execution Framework List */}
-      <AppointmentsList />
+      <AppointmentsList isNurse={false} />
 
-      {/* Multi-stage Interface Modal Dialog Box */}
       <BookingModal 
         nurseId={selectedNurse?.id}
         nurseName={selectedNurse?.name || ""}
         isOpen={isBookingOpen}
         onClose={() => {
           setIsBookingOpen(false);
-          fetchKPIs(); // Re-sync stats cleanly when modal unmounts
+          fetchKPIs();
         }}
       />
     </main>

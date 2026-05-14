@@ -5,8 +5,17 @@ interface FailedRequest {
   reject: (error: unknown) => void;
 }
 
+const isProd = process.env.NEXT_PUBLIC_NODE_ENV === 'production' || process.env.NODE_ENV === 'production';
+
+const getBaseUrl = () => {
+    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+    return isProd
+        ? `https://${process.env.NEXT_PUBLIC_API_DOMAIN || 'onrender.com'}/api/`
+        : '127.0.0';
+};
+
 const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/', 
+    baseURL: getBaseUrl(), 
     withCredentials: true,
     timeout: 30000,
     headers: {

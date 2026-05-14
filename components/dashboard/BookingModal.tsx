@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import api from "@/lib/api";
 import {
   Dialog,
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { useBookingSocket } from "@/hooks/useBookingSocket"; // ENHANCEMENT: Ingest real-time socket hook
 
 interface BookingModalProps {
   nurseId: number | string | null | undefined;
@@ -42,13 +43,22 @@ export default function BookingModal({ nurseId, nurseName, isOpen, onClose }: Bo
     service_description: "",
   });
 
+  // Handle updates coming back from Daphne socket channel layer states
+  const handleSocketFeedback = useCallback((message: any) => {
+    if (message.type === "BOOKING_CONFIRMED" && message.nurse_id === nurseId) {
+      toast.success("Dispatch Multiplexed", { description: "The professional acknowledged your route live." });
+    }
+  }, [nurseId]);
+
+  // Bind real-time data frame pipeline controls
+  const { isConnected, sendMessage } = useBookingSocket(handleSocketFeedback);
+
   const formatLocalDateToISO = (localDateTimeString: string): string => {
     if (!localDateTimeString) return "";
     const date = new Date(localDateTimeString);
     if (isNaN(date.getTime())) return "";
     
     const pad = (num: number) => String(num).padStart(2, "0");
-    
     const year = date.getFullYear();
     const month = pad(date.getMonth() + 1);
     const day = pad(date.getDate());
@@ -90,18 +100,36 @@ export default function BookingModal({ nurseId, nurseName, isOpen, onClose }: Bo
       return toast.error("Validation Error", { description: "Provide a descriptive summary of clinical requirements." });
     }
 
+    const payload = {
+      action: "initialize_dispatch", // Evaluated inside consumer logic
+      nurse: finalId,
+      scheduled_date: formatLocalDateToISO(formData.scheduled_date), 
+      service_description: formData.service_description.trim(),
+    };
+
     setLoading(true);
+
+    // ARCHITECTURAL PIVOT: Send over active WebSockets first, fall back to API if offline
+    if (isConnected) {
+      try {
+        sendMessage(payload);
+        toast.success("Socket Dispatch Sent", { description: `Transmitted instantly via stream to ${nurseName}.` });
+        setFormData({ scheduled_date: "", service_description: "" });
+        onClose();
+        return;
+      } catch (wsErr) {
+        console.warn("Socket frame drop, falling back to HTTP layer REST transaction.", wsErr);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // HTTP Fallback Engine Frame Link
     try {
-      await api.post("bookings/", {
-        nurse: finalId,
-        scheduled_date: formatLocalDateToISO(formData.scheduled_date), 
-        service_description: formData.service_description.trim(),
-      });
-      
-      toast.success("Request Queued", { description: `Dispatched cleanly to ${nurseName}.` });
+      await api.post("bookings/", payload);
+      toast.success("Request Queued via HTTP", { description: `Dispatched cleanly to ${nurseName}.` });
       setFormData({ scheduled_date: "", service_description: "" });
       onClose(); 
-      
     } catch (err) {
       const errorContext = err as ServerErrorResponse;
       const serverData = errorContext.response?.data;
@@ -114,7 +142,7 @@ export default function BookingModal({ nurseId, nurseName, isOpen, onClose }: Bo
       }
       
       toast.error("Registry Rejection", { description: String(errorMsg) });
-    } finally {
+    } {
       setLoading(false);
     }
   };
@@ -129,9 +157,13 @@ export default function BookingModal({ nurseId, nurseName, isOpen, onClose }: Bo
           <div className="p-6 md:p-8 space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
             <DialogHeader className="text-left relative">
               <div className="flex flex-col gap-1">
-                <DialogTitle className="text-xl font-black uppercase tracking-tighter text-zinc-900 leading-none">
-                  Initialize Dispatch
-                </DialogTitle>
+                <div className="flex items-center space-x-2">
+                  <DialogTitle className="text-xl font-black uppercase tracking-tighter text-zinc-900 leading-none">
+                    Initialize Dispatch
+                  </DialogTitle>
+                  {/* Visual anchor mapping connection runtime states */}
+                  <span className={`h-2 w-2 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-amber-500"}`} title={isConnected ? "WebSocket Stream Online" : "HTTP Connection Active"} />
+                </div>
                 <DialogDescription className="font-bold text-zinc-400 text-[9px] uppercase tracking-widest mt-1">
                    Security Handshake Protocol Active
                 </DialogDescription>
@@ -147,7 +179,7 @@ export default function BookingModal({ nurseId, nurseName, isOpen, onClose }: Bo
                     required
                     disabled={loading}
                     value={formData.scheduled_date}
-                    className="rounded-2xl h-14 border-zinc-100 bg-zinc-50 focus-visible:ring-2 focus-visible:ring-blue-600 font-bold transition-all text-sm focus-visible:ring-offset-0"
+                    className="rounded-2xl h-14 border-zinc-100 bg-zinc-50 focus-visible:ring-2 focus-visible:ring-blue-600 font-bold transition-all text-sm focus-visible:ring-offset-0 text-zinc-900"
                     onChange={(e) => setFormData({...formData, scheduled_date: e.target.value})}
                   />
                 </div>
@@ -159,7 +191,7 @@ export default function BookingModal({ nurseId, nurseName, isOpen, onClose }: Bo
                     required
                     disabled={loading}
                     value={formData.service_description}
-                    className="rounded-2xl min-h-[110px] border-zinc-100 bg-zinc-50 focus-visible:ring-2 focus-visible:ring-blue-600 font-medium p-4 text-sm leading-relaxed resize-none focus-visible:ring-offset-0"
+                    className="rounded-2xl min-h-[110px] border-zinc-100 bg-zinc-50 focus-visible:ring-2 focus-visible:ring-blue-600 font-medium p-4 text-sm leading-relaxed resize-none focus-visible:ring-offset-0 text-zinc-900"
                     onChange={(e) => setFormData({...formData, service_description: e.target.value})}
                   />
                 </div>

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useBookingSocket } from "@/hooks/useBookingSocket";
 
 const calculateTravelInfo = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 6371;
@@ -43,29 +44,63 @@ export default function AppointmentsList({ isNurse, useActiveOnly, onStatusUpdat
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [nurseCoords, setNurseCoords] = useState<{lat: number, lng: number} | null>(null);
   const [ratingInput, setRatingInput] = useState<Record<number, number>>({});
-
-  useEffect(() => {
-    if (isNurse && "geolocation" in navigator) {
-      const watchId = navigator.geolocation.watchPosition(
-        (pos) => setNurseCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        (err) => console.error("Telemetry Error:", err),
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-      return () => navigator.geolocation.clearWatch(watchId);
-    }
-  }, [isNurse]);
+  const registrySocketRef = useRef<WebSocket | null>(null);
 
   const fetchLedger = useCallback(async () => {
     try {
       const endpoint = useActiveOnly ? "bookings/active/" : "bookings/";
       const res = await api.get(endpoint);
-      setAppointments(res.data);
+      setAppointments(Array.isArray(res.data) ? res.data : []);
     } catch {
       toast.error("Synchronization Failed");
     } finally {
       setLoading(false);
     }
   }, [useActiveOnly]);
+
+  const handleIncomingSocketSignals = useCallback((message: any) => {
+    if (["NEW_DISPATCH_REQUESTED", "BOOKING_CONFIRMED", "LOCATION_UPDATED"].includes(message.type)) {
+      fetchLedger();
+      if (onStatusUpdate) onStatusUpdate();
+    }
+  }, [fetchLedger, onStatusUpdate]);
+
+  useBookingSocket(handleIncomingSocketSignals);
+
+  useEffect(() => {
+    if (isNurse && "geolocation" in navigator) {
+      const isProd = process.env.NEXT_PUBLIC_NODE_ENV === "production";
+      const wsUrl = isProd
+        ? `wss://${process.env.NEXT_PUBLIC_API_DOMAIN}/ws/registry/`
+        : `ws://127.0.0.1:10000/ws/registry/`;
+
+      const regSocket = new WebSocket(wsUrl);
+      registrySocketRef.current = regSocket;
+
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const currentCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setNurseCoords(currentCoords);
+
+          const activeAcceptedJob = appointments.find(a => a.status === "accepted");
+          if (activeAcceptedJob && regSocket.readyState === WebSocket.OPEN) {
+            regSocket.send(JSON.stringify({
+              action: "TRANSMIT_LOCATION_DATA",
+              patient_id: activeAcceptedJob.id, 
+              coordinates: currentCoords
+            }));
+          }
+        },
+        (err) => console.error(err),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+
+      return () => {
+        navigator.geolocation.clearWatch(watchId);
+        regSocket.close();
+      };
+    }
+  }, [isNurse, appointments]);
 
   useEffect(() => {
     fetchLedger();
@@ -75,11 +110,11 @@ export default function AppointmentsList({ isNurse, useActiveOnly, onStatusUpdat
     setActionLoading(bookingId);
     try {
       await api.patch(`bookings/${bookingId}/status/`, { status: nextStatus });
-      toast.success("Record State Mutated");
+      toast.success("State Changed");
       fetchLedger();
       if (onStatusUpdate) onStatusUpdate();
     } catch (err: any) {
-      toast.error("Operation Rejected", { description: err.response?.data?.error });
+      toast.error("Rejected", { description: err.response?.data?.error });
     } finally {
       setActionLoading(null);
     }
@@ -97,11 +132,11 @@ export default function AppointmentsList({ isNurse, useActiveOnly, onStatusUpdat
         lat: nurseCoords.lat,
         lng: nurseCoords.lng
       });
-      toast.success("Arrival Authenticated");
+      toast.success("Arrival Verified");
       fetchLedger();
       if (onStatusUpdate) onStatusUpdate();
     } catch (err: any) {
-      toast.error("Authentication Refused", { description: err.response?.data?.error });
+      toast.error("Refused", { description: err.response?.data?.error });
     } finally {
       setActionLoading(null);
     }
@@ -117,7 +152,7 @@ export default function AppointmentsList({ isNurse, useActiveOnly, onStatusUpdat
       fetchLedger();
       if (onStatusUpdate) onStatusUpdate();
     } catch {
-      toast.error("Submission Denied");
+      toast.error("Denied");
     } finally {
       setActionLoading(null);
     }
@@ -126,10 +161,10 @@ export default function AppointmentsList({ isNurse, useActiveOnly, onStatusUpdat
   if (loading) return <div className="text-center p-12 text-zinc-400 font-bold text-xs">SYNCHRONISING...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       {appointments.length === 0 ? (
-        <div className="bg-zinc-50 border border-dashed rounded-3xl p-12 text-center text-zinc-400 font-bold text-xs uppercase">
-          No Registered Records Found
+        <div className="bg-zinc-50 border border-dashed rounded-[2rem] p-12 text-center text-zinc-400 font-black text-[10px] uppercase tracking-wider">
+          No Records Found
         </div>
       ) : (
         appointments.map((apt) => {
@@ -145,64 +180,122 @@ export default function AppointmentsList({ isNurse, useActiveOnly, onStatusUpdat
             travelMeta = calculateTravelInfo(nurseCoords.lat, nurseCoords.lng, apt.patient_location_data.lat, apt.patient_location_data.lng);
           }
 
-          const name = isNurse ? apt.patient_email?.split('@')[0] : apt.nurse_name?.split('@')[0];
+          const name = isNurse 
+            ? (apt.patient_email?.includes("@") ? apt.patient_email.split('@')[0] : apt.patient_email)
+            : (apt.nurse_name?.includes("@") ? apt.nurse_name.split('@')[0] : apt.nurse_name);
 
           return (
-            <div key={apt.id} className={cn("bg-white border rounded-[2rem] p-8 shadow-sm flex flex-col lg:flex-row justify-between gap-6", isArchived && "opacity-60 grayscale")}>
+            <div key={apt.id} className={cn("bg-white border border-zinc-100 rounded-[2.5rem] p-6 md:p-8 shadow-sm flex flex-col lg:flex-row justify-between gap-6", isArchived && "opacity-60 grayscale bg-zinc-50/50 shadow-none")}>
               <div className="space-y-4 flex-1">
                 <div>
-                  <span className="text-[10px] font-bold text-zinc-400 block uppercase">NK-ID: {apt.id} [{apt.status}]</span>
-                  <h4 className="text-xl font-black text-zinc-900 uppercase">{name}</h4>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest block">NK-ID: #{apt.id}</span>
+                    <span className={cn("text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full", 
+                      isAccepted && "bg-emerald-50 text-emerald-600",
+                      isPending && "bg-amber-50 text-amber-600",
+                      isInProgress && "bg-blue-50 text-blue-600",
+                      isCompleted && "bg-zinc-100 text-zinc-600"
+                    )}>
+                      {apt.status}
+                    </span>
+                  </div>
+                  <h4 className="text-xl font-black text-zinc-900 uppercase tracking-tight pt-1">{name}</h4>
                 </div>
-                <p className="text-xs text-zinc-600 bg-zinc-50 p-4 rounded-xl font-medium">"{apt.service_description}"</p>
-                <div className="text-xs text-zinc-500 font-bold uppercase">
-                  <span>Schedule: {new Date(apt.scheduled_date).toLocaleString("en-KE")}</span>
-                  {travelMeta && <span className="block text-emerald-600">Proximity: {travelMeta.distance} KM ({travelMeta.eta} MINS)</span>}
+                
+                <p className="text-xs text-zinc-600 bg-zinc-50 p-4 rounded-2xl font-medium leading-relaxed border border-zinc-100/50">
+                  "{apt.service_description}"
+                </p>
+                
+                <div className="text-[10px] text-zinc-400 font-black uppercase tracking-wider space-y-1">
+                  <div>Schedule: <span className="text-zinc-700 font-mono font-bold">{new Date(apt.scheduled_date).toLocaleString("en-KE")}</span></div>
+                  {travelMeta && <div className="text-emerald-600">Transit Radar: {travelMeta.distance} KM ({travelMeta.eta} MINS)</div>}
                 </div>
-                {apt.patient_location_data && (
-                  <div className="text-[11px] text-zinc-500 font-bold bg-zinc-50 p-4 rounded-xl border border-dashed">
-                    LOCATION: {apt.patient_location_data.building}, {apt.patient_location_data.town} | CONTACT: {apt.patient_location_data.phone}
+                
+                {apt.patient_location_data && isNurse && (
+                  <div className="text-[11px] text-zinc-600 font-medium bg-zinc-50 p-4 rounded-2xl border border-dashed border-zinc-200">
+                    Town: {apt.patient_location_data.building}, {apt.patient_location_data.town} | Contact: {apt.patient_location_data.phone}
                   </div>
                 )}
-                {apt.nurse_contact_data && (
-                  <div className="text-[11px] text-zinc-500 font-bold bg-zinc-50 p-4 rounded-xl border border-dashed">
-                    CLINICAL REGISTRY: {apt.nurse_contact_data.specialization} [{apt.nurse_contact_data.license}] | PHONE: {apt.nurse_contact_data.phone}
+                
+                {apt.nurse_contact_data && !isNurse && (
+                  <div className="text-[11px] text-zinc-600 font-medium bg-zinc-50 p-4 rounded-2xl border border-dashed border-zinc-200">
+                    Registry: {apt.nurse_contact_data.specialization} [{apt.nurse_contact_data.license}] | Phone: {apt.nurse_contact_data.phone}
+                  </div>
+                )}
+
+                {needsReview && (
+                  <div className="pt-2 space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => setRatingInput({ ...ratingInput, [apt.id]: star })}
+                          className="border-none bg-transparent p-0 cursor-pointer text-zinc-300 font-bold text-lg"
+                        >
+                          ★
+                        </button>
+                      ))}
+                      {ratingInput[apt.id] && (
+                        <button 
+                          onClick={() => handleSubmitRating(apt.id)}
+                          className="ml-3 h-8 px-4 bg-zinc-950 text-white font-black text-[9px] uppercase tracking-widest rounded-lg border-none cursor-pointer hover:bg-blue-600"
+                        >
+                          Submit Review
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-end lg:w-48">
+
+              <div className="flex items-center justify-end lg:w-52 border-t lg:border-t-0 border-zinc-100 pt-4 lg:pt-0">
                 {actionLoading === apt.id ? (
-                  <div className="text-zinc-400 text-xs font-bold">PROCESSING...</div>
+                  <div className="text-zinc-400 text-[10px] font-black uppercase tracking-widest animate-pulse">
+                    Processing...
+                  </div>
                 ) : (
-                  <>
+                  <div className="w-full space-y-2">
                     {isNurse && isPending && (
                       <div className="flex flex-col gap-2 w-full">
-                        <button onClick={() => handleStatusMutation(apt.id, "accepted")} className="bg-zinc-950 text-white h-11 text-xs font-bold rounded-xl uppercase">Accept</button>
-                        <button onClick={() => handleStatusMutation(apt.id, "declined")} className="bg-zinc-100 text-zinc-500 h-11 text-xs font-bold rounded-xl uppercase">Decline</button>
+                        <button 
+                          onClick={() => handleStatusMutation(apt.id, "accepted")} 
+                          className="bg-zinc-950 hover:bg-emerald-600 text-white h-12 text-[10px] font-black uppercase tracking-widest rounded-2xl border-none cursor-pointer w-full"
+                        >
+                          Accept
+                        </button>
+                        <button 
+                          onClick={() => handleStatusMutation(apt.id, "declined")} 
+                          className="bg-zinc-50 hover:bg-zinc-100 text-zinc-400 h-12 text-[10px] font-black uppercase tracking-widest rounded-2xl border-none cursor-pointer w-full"
+                        >
+                          Decline
+                        </button>
                       </div>
                     )}
                     {isNurse && isAccepted && (
-                      <button onClick={() => handleVerifyArrival(apt.id)} className="w-full bg-blue-600 text-white h-12 text-xs font-bold rounded-xl uppercase">Verify Proximity Arrival</button>
+                      <button 
+                        onClick={() => handleVerifyArrival(apt.id)} 
+                        className="w-full bg-blue-600 hover:bg-zinc-950 text-white h-14 text-[10px] font-black uppercase tracking-widest rounded-2xl border-none cursor-pointer"
+                      >
+                        Verify Arrival
+                      </button>
                     )}
                     {isNurse && isInProgress && (
-                      <button onClick={() => handleStatusMutation(apt.id, "completed")} className="w-full bg-emerald-600 text-white h-12 text-xs font-bold rounded-xl uppercase">Complete Session</button>
+                      <button 
+                        onClick={() => handleStatusMutation(apt.id, "completed")} 
+                        className="w-full bg-emerald-600 hover:bg-zinc-950 text-white h-14 text-[10px] font-black uppercase tracking-widest rounded-2xl border-none cursor-pointer"
+                      >
+                        Complete Session
+                      </button>
                     )}
-                    {!isNurse && (isPending || isAccepted) && (
-                      <button onClick={() => handleStatusMutation(apt.id, "cancelled")} className="w-full bg-zinc-100 text-zinc-400 h-12 text-xs font-bold rounded-xl uppercase">Cancel Request</button>
+                    {!isNurse && isPending && (
+                      <button 
+                        onClick={() => handleStatusMutation(apt.id, "cancelled")} 
+                        className="w-full bg-zinc-50 hover:bg-rose-50 text-zinc-400 h-12 text-[10px] font-black uppercase tracking-widest rounded-2xl border-none cursor-pointer"
+                      >
+                        Cancel
+                      </button>
                     )}
-                    {needsReview && (
-                      <div className="w-full space-y-3 bg-blue-50 p-4 rounded-xl text-center">
-                        <span className="text-[10px] font-bold text-blue-600 block uppercase mb-1">Evaluate Session Care Quality</span>
-                        <div className="flex gap-2 justify-center">
-                          {/* FIXED: Replaced dead array syntax wrapper with solid structural iteration array */}
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <span key={s} className={cn("cursor-pointer text-lg", (ratingInput[apt.id] || 0) >= s ? "text-amber-400" : "text-zinc-300")} onClick={() => setRatingInput({ ...ratingInput, [apt.id]: s })}>★</span>
-                          ))}
-                        </div>
-                        <button onClick={() => handleSubmitRating(apt.id)} className="w-full bg-blue-600 text-white h-9 text-xs font-bold rounded-xl uppercase">Submit</button>
-                      </div>
-                    )}
-                  </>
+                  </div>
                 )}
               </div>
             </div>
