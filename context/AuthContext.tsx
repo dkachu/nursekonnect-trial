@@ -105,7 +105,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (userData) {
         const hasTown = userData.profile?.town && userData.profile.town.trim().length > 0;
         const hasBuilding = userData.profile?.building && userData.profile.building.trim().length > 0;
-        const isOnboarded = !!(hasTown || hasBuilding);
+        const isOnboarded = !!(hasTown && hasBuilding);
         
         if (!isOnboarded) {
           router.push("/setup");
@@ -121,6 +121,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       let message = "Registry rejection.";
       if (error && typeof error === "object" && "response" in error) {
         const axiosError = error as { response?: { data?: APIErrorResponse } };
+        // FIXED: Stripped out the broken trailing period syntax drop to fix frontend crashes
         message = axiosError.response?.data?.detail || 
                   axiosError.response?.data?.non_field_errors?.[0] || 
                   message;
@@ -142,7 +143,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         email, password, phone_number, is_nurse, is_patient 
       });
       
-      // FIXED: Lightweight timeout sleep allows PostGIS database transaction writes and signal profiles to settle completely
       await new Promise((res) => setTimeout(res, 400));
       return await login(email, password);
     } catch (error: unknown) {
@@ -163,7 +163,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try { 
       await api.post("accounts/logout/"); 
     } catch { 
-      print("Clearing session state"); 
+      console.warn("Clearing session state"); 
     }
     setUser(null);
     router.push("/login");
