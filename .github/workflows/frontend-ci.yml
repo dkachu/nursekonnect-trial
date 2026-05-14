@@ -11,35 +11,37 @@ jobs:
     name: Run Compilation & Linting Audits
     runs-on: ubuntu-latest
 
+    # FIXED: Configured high-privilege environment flags to enforce Node 24 baseline execution compatibility
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
     steps:
-      # 1. CLONE THE SOURCE CODE REPOSITORY
+      # 1. CLONE THE SOURCE CODE MATRIX
       - name: Checkout Code Matrix
         uses: actions/checkout@v4
 
-      # 2. SETUP NODE ENVIRONMENT TO MATCH PRODUCTION METRICS
-      - name: Setup Node.js Environment
+      # 2. FIXED: Setup node container runtime parameters to utilize the audited Node 24 platform standard
+      - name: Setup Node.js 24 Environment
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
 
-      # 3. CONFIGURE INTERNET-FREE OPTIMIZATION VARIABLES
-      # Prevents the remote build machine from freezing on Google Fonts network requests
+      # 3. INJECT NETWORKING CONFIGURATION VARIABLES
       - name: Inject Baseline Build Properties
         run: |
           echo "NEXT_PUBLIC_API_URL=onrender.com" >> .env.local
           echo "NEXT_PUBLIC_APP_NAME=NurseKonnekt" >> .env.local
           echo "NEXT_PUBLIC_DEFAULT_CURRENCY=KES" >> .env.local
 
-      # 4. INSTALL DEPENDENCIES EXTENSIONS MATRIX
+      # 4. INSTALL SYSTEM LAYER COMPONENT PACKAGES
       - name: Clean Install Project Dependencies
         run: npm ci
 
-      # 5. RUN STRICT LINTING RULE CONTROLS
-      - name: Verify Code Code Quality (Linting)
+      # 5. RUN CODE STYLE CHECKS
+      - name: Verify Code Quality (Linting)
         run: npm run lint
 
-      # 6. TRIGGER OPTIMIZED PRODUCTION STATIC PAGES GENERATION
-      # This mimics your local successful build command exactly
+      # 6. TRIGGER NEXT.js COMPILER ASSET PRODUCTION GENERATION
       - name: Compile Hardened Static Production Assets
         run: npm run build
