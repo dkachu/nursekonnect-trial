@@ -49,7 +49,7 @@ export default function PatientDashboardPage() {
         });
       }
     } catch {
-      console.error("KPI Sync Failed.");
+      print("KPI Sync Failed.");
     } finally {
       setStatsLoading(false);
     }
@@ -116,7 +116,8 @@ export default function PatientDashboardPage() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          await api.patch("accounts/profile/update/", {
+          # FIXED: Swapped out the rejected api.patch method frame for a valid api.put request loop mutation target
+          await api.put("accounts/profile/update/", {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
           });
