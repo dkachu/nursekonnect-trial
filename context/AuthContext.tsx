@@ -64,16 +64,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const refreshUser = useCallback(async (): Promise<UserDetails | null> => {
     try {
       const res = await api.get("accounts/profile/me/");
-      const { user_details = {}, profile = {} } = res.data;
       
-      if (!user_details.id) throw new Error("Unauthorized");
+      // FIX: Flexible extraction checks both nested and flat response payload structures
+      const data = res.data || {};
+      const user_details = data.user_details || data;
+      const profile = data.profile || {};
+      
+      if (!user_details.id && !data.id) throw new Error("Unauthorized");
 
       const mergedUser: UserDetails = { 
-        id: user_details.id,
-        email: user_details.email,
-        phone_number: user_details.phone_number,
-        is_nurse: !!user_details.is_nurse,
-        is_patient: !!user_details.is_patient,
+        id: user_details.id || data.id,
+        email: user_details.email || data.email,
+        phone_number: user_details.phone_number || data.phone_number,
+        is_nurse: !!(user_details.is_nurse || data.is_nurse),
+        is_patient: !!(user_details.is_patient || data.is_patient),
         profile: { ...profile },
         is_synced: !!(profile.lat && profile.lng)
       };
@@ -103,14 +107,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userData = await refreshUser();
       
       if (userData) {
-        const hasTown = userData.profile?.town && userData.profile.town.trim().length > 0;
-        const hasBuilding = userData.profile?.building && userData.profile.building.trim().length > 0;
+        const profile = userData.profile || {};
+        const hasTown = typeof profile.town === "string" && profile.town.trim().length > 0;
+        const hasBuilding = typeof profile.building === "string" && profile.building.trim().length > 0;
         const isOnboarded = !!(hasTown && hasBuilding);
         
+        // FIXED: Enforce absolute clean routing redirection switches using safe casting
         if (!isOnboarded) {
           router.push("/setup");
+        } else if (userData.is_nurse) {
+          router.push("/profile");
         } else {
-          router.push(userData.is_nurse ? "/profile" : "/dashboard");
+          router.push("/dashboard");
         }
         
         toast.success("Authentication Verified");
@@ -121,7 +129,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       let message = "Registry rejection.";
       if (error && typeof error === "object" && "response" in error) {
         const axiosError = error as { response?: { data?: APIErrorResponse } };
-        // FIXED: Stripped out the broken trailing period syntax drop to fix frontend crashes
         message = axiosError.response?.data?.detail || 
                   axiosError.response?.data?.non_field_errors?.[0] || 
                   message;
