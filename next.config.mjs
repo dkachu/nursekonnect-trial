@@ -1,27 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Transpiles Leaflet and layout packages to ensure absolute compatibility with Next.js 14 [INDEX]
-  transpilePackages: ["react-leaflet", "leaflet"],
-
-  // Enforces structural integrity across lifecycle events
   reactStrictMode: true,
+  async rewrites() {
+    const isProd = process.env.NEXT_PUBLIC_NODE_ENV === 'production' || process.env.NODE_ENV === 'production';
+    
+    if (isProd) return [];
 
-  // Configures optimization rules for production asset routing across network borders [INDEX]
-  images: {
-    formats: ["image/avif", "image/webp"],
-    remotePatterns: [
+    return [
       {
-        protocol: "https",
-        hostname: "onrender.com", // Maps directly to your secured production backend domain
-        port: "",
-        pathname: "/media/**",
+        source: '/api/:path*',
+        destination: '127.0.0',
       },
-    ],
-  },
-
-  // Strips console logging entries entirely during production compiles to prevent tracing data leaks [INDEX]
-  compiler: {
-    removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,
+    ];
   },
 };
 
