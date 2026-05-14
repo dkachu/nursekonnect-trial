@@ -1,57 +1,103 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react"; 
+import React, { useState, useEffect, useCallback, useRef } from "react"; 
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { Loader2, Activity, ShieldCheck, Radio } from "lucide-react";
 import AppointmentsList from "@/components/dashboard/AppointmentsList";
 import NurseStats from "@/components/dashboard/NurseStats"; 
 import { useProfessionalHeartbeat } from "@/hooks/useProfessionalHeartbeat";
+import { useRegistrySync } from "@/hooks/useRegistrySync";
+
+interface StatsPayload {
+  active_dispatches: number;
+  gross_earnings: number;
+  total_success: number;
+  registry_rating: string | number; // FIXED: Aligned type constraint directly with NurseStats component definitions
+}
 
 export default function NurseProfilePage() {
   const { user, loading, refreshUser } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState<StatsPayload | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
-  const [isOnline, setIsOnline] = useState(user?.profile?.is_available || false);
+  const [isOnline, setIsOnline] = useState(false);
+  const didFetchInitial = useRef(false);
+
+  useEffect(() => {
+    if (user?.profile) {
+      setIsOnline(!!user.profile.is_available);
+    }
+  }, [user]);
+
+  const { isConnected, sendWebSocketMessage } = useRegistrySync({
+    onNewDispatch: () => {
+      fetchKPIs();
+    }
+  });
+
+  useProfessionalHeartbeat({
+    isNurse: !!user?.is_nurse,
+    isOnline: isOnline,
+    isAvailable: isOnline,
+    socketConnected: isConnected,
+    sendWebSocketMessage: sendWebSocketMessage
+  });
 
   const fetchKPIs = useCallback(async () => {
     setStatsLoading(true);
     try {
-      const res = await api.get("bookings/stats/nurse/");
-      setStats(res.data);
-    } catch {
-      console.error("KPI synchronization failure");
-    } bits {
+      const res = await api.get("bookings/active/");
+      
+      if (Array.isArray(res.data)) {
+        const completed = res.data.filter(b => b.status === "completed");
+        const earnings = completed.reduce((sum, b) => sum + (Number(b.price) || 0), 0);
+        const ratedBookings = completed.filter(b => b.rating !== null && b.rating !== undefined);
+        const avgRating = ratedBookings.length 
+          ? (ratedBookings.reduce((sum, b) => sum + Number(b.rating), 0) / ratedBookings.length) 
+          : "5.0"; // FIXED: Baseline score string fallback prevents null value drops from breaking types
+
+        setStats({
+          active_dispatches: res.data.filter(b => ["pending", "accepted", "in_progress"].includes(b.status)).length,
+          gross_earnings: earnings,
+          total_success: completed.length,
+          registry_rating: avgRating
+        });
+      }
+    } catch (error) {
+      console.error("KPI synchronization failure across registry nodes:", error);
+    } finally {
       setStatsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (user) {
+    if (user && !didFetchInitial.current) {
       fetchKPIs();
+      didFetchInitial.current = true;
     }
   }, [user, fetchKPIs]);
-
-  // Enforce background coordinate heartbeat tracking via centralized custom hook
-  useProfessionalHeartbeat(true, isOnline);
 
   const toggleDeploymentStatus = async () => {
     try {
       const nextStatus = !isOnline;
       await api.patch("accounts/profile/update/", { is_available: nextStatus });
       setIsOnline(nextStatus);
-      toast.success(nextStatus ? "DEPLOYMENT ACTIVE" : "DEPLOYMENT DEACTIVATED");
+      toast.success(nextStatus ? "DEPLOYMENT CHANNEL ACTIVE" : "DEPLOYMENT CHANNEL DEACTIVATED");
     } catch {
-      toast.error("Operation Rejected");
+      toast.error("Operation Rejected", { description: "Verify compliance locks and retry." });
     }
   };
 
   const syncLocation = () => {
-    if (!navigator.geolocation) {
-      return toast.error("Hardware Missing");
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      return toast.error("Hardware Limitation", { description: "GPS hardware module is missing or unauthorized." });
     }
+    
     setIsSyncing(true);
+    const syncToast = toast.loading("Aligning baseline geographical data points...");
+    
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
@@ -59,69 +105,90 @@ export default function NurseProfilePage() {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
           });
-          toast.success("Coordinates Locked");
+          toast.success("Base Coordinates Secured", { id: syncToast });
           await refreshUser();
         } catch {
-          toast.error("Synchronization Failed");
+          toast.error("Synchronization Failed", { id: syncToast });
         } finally {
           setIsSyncing(false);
         }
       },
-      () => { 
+      (error) => { 
         setIsSyncing(false); 
-        toast.error("GPS Access Denied"); 
+        toast.error("GPS Access Denied", { id: syncToast, description: error.message }); 
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
   if (loading || !user) {
-    return <div className="text-center p-12 text-zinc-400 font-bold text-xs">SYNCHRONISING...</div>;
+    return (
+      <div className="h-screen w-full bg-white flex flex-col items-center justify-center bg-white gap-4">
+        <Loader2 className="animate-spin text-blue-600" size={36} />
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 animate-pulse">
+          Synchronising Registry Handshake...
+        </p>
+      </div>
+    );
   }
 
-  const nameArray = user.email ? user.email.split('@') : ["Authorized"];
-  const displayName = nameArray;
+  const identityString = user.email || "Practitioner Account";
+  const displayName = identityString.includes("@") ? identityString.split("@")[0] : identityString;
 
   return (
-    <main className="max-w-7xl mx-auto p-6 lg:p-12 space-y-12 min-h-screen">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b pb-8">
-        <div className="space-y-1">
-          <span className="text-[10px] font-black text-zinc-400 block uppercase tracking-widest">WORKSPACE</span>
-          <h1 className="text-3xl font-black text-zinc-900 uppercase tracking-tight">
-            Hello, {displayName}
+    <main className="max-w-7xl mx-auto p-6 lg:p-12 space-y-16 min-h-screen font-sans bg-white select-none">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 border-b border-dashed border-zinc-100 pb-12">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2.5 text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] italic">
+            <Activity size={12} className="animate-pulse" /> Clinical Workspace
+          </div>
+          <h1 className="text-4xl md:text-6xl font-black text-zinc-900 tracking-tighter uppercase italic leading-none">
+            Hello, <span className="text-blue-600 not-italic">{displayName}</span>
           </h1>
         </div>
 
-        <div className="flex flex-wrap gap-4 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
           <button 
+            type="button"
             onClick={toggleDeploymentStatus}
-            className={`h-12 px-6 rounded-xl font-black text-xs uppercase tracking-widest transition-colors border-none cursor-pointer flex-1 md:flex-none ${
-              isOnline ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
+            className={`h-16 px-8 rounded-2xl font-black text-xs uppercase tracking-widest transition-all duration-200 cursor-pointer shadow-md flex items-center justify-center gap-2 border-none active:scale-[0.98] ${
+              isOnline 
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                : "bg-zinc-50 hover:bg-zinc-100 text-zinc-500 border border-zinc-200"
             }`}
           >
-            {isOnline ? "ONLINE" : "GO ONLINE"}
+            <Radio size={14} className={isOnline ? "animate-spin duration-3000" : ""} />
+            <span>{isOnline ? "ONLINE FOR DISPATCH" : "GO ONLINE"}</span>
           </button>
 
           <button 
+            type="button"
             onClick={syncLocation} 
             disabled={isSyncing} 
-            className="bg-zinc-950 hover:bg-zinc-900 text-white h-12 px-6 rounded-xl font-black text-xs uppercase tracking-widest border-none cursor-pointer disabled:opacity-50 flex-1 md:flex-none"
+            className="bg-zinc-950 hover:bg-zinc-800 text-white h-16 px-8 rounded-2xl font-black text-xs uppercase tracking-widest border-none cursor-pointer shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSyncing ? "LOCKING..." : "SYNC BASE LOCATION"}
+            {isSyncing ? <Loader2 className="animate-spin" size={14} /> : "⚡"}
+            <span>{isSyncing ? "CALIBRATING MATRICES..." : "SYNC BASE LOCATION"}</span>
           </button>
         </div>
       </header>
 
-      <section className="space-y-4">
-        <div>
-          <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">Registry Performance</h3>
+      <section className="space-y-6">
+        <div className="flex items-center gap-2.5">
+          <ShieldCheck size={16} className="text-zinc-400" />
+          <h2 className="text-xs font-black uppercase tracking-[0.25em] text-zinc-900 italic">
+            Registry Performance KPI Analytics
+          </h2>
         </div>
         <NurseStats stats={stats} loading={statsLoading} />
       </section>
 
-      <section className="space-y-4">
-        <div>
-          <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">Active Care Dispatches</h3>
+      <section className="space-y-6">
+        <div className="flex items-center gap-2.5">
+          <Radio size={16} className="text-zinc-400" />
+          <h2 className="text-xs font-black uppercase tracking-[0.25em] text-zinc-900 italic">
+            Active Care Dispatches Queue
+          </h2>
         </div>
         <AppointmentsList isNurse={true} useActiveOnly={true} onStatusUpdate={fetchKPIs} />
       </section>

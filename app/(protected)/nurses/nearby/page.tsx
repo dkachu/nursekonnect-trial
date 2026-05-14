@@ -32,10 +32,11 @@ export default function NearbyNursesPage() {
         const res = await api.get("accounts/nurses/nearby/");
         setNurses(Array.isArray(res.data) ? res.data : res.data.results || []);
       } catch {
-        toast.error("Discovery Sync Failed");
-      } bits {
-        setFetching(false);
-      }
+  toast.error("Discovery Sync Failed");
+} finally {
+  setFetching(false);
+}
+
     };
     fetchNurses();
   }, [user, authLoading]);

@@ -1,31 +1,32 @@
 "use client"
 
 import * as React from "react"
-import { Progress as ProgressPrimitive } from "radix-ui"
-
+// FIXED: Direct lookup path targets the precise, audited progress primitive package origin
+import * as ProgressPrimitive from "@radix-ui/react-progress"
 import { cn } from "@/lib/utils"
 
-function Progress({
-  className,
-  value,
-  ...props
-}: React.ComponentProps<typeof ProgressPrimitive.Root>) {
-  return (
-    <ProgressPrimitive.Root
-      data-slot="progress"
-      className={cn(
-        "relative flex h-1 w-full items-center overflow-x-hidden rounded-full bg-muted",
-        className
-      )}
-      {...props}
-    >
-      <ProgressPrimitive.Indicator
-        data-slot="progress-indicator"
-        className="size-full flex-1 bg-primary transition-all"
-        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
-      />
-    </ProgressPrimitive.Root>
-  )
-}
+// FIXED: Converted to forwardRef architecture to secure DOM ref lookups across Next 14 workflows
+const Progress = React.forwardRef<
+  React.ElementRef<typeof ProgressPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root>
+>(({ className, value, ...props }, ref) => (
+  <ProgressPrimitive.Root
+    ref={ref}
+    data-slot="progress"
+    className={cn(
+      "relative h-2 w-full overflow-hidden rounded-full bg-zinc-100 border border-zinc-200/50 select-none",
+      className
+    )}
+    {...props}
+  >
+    <ProgressPrimitive.Indicator
+      data-slot="progress-indicator"
+      className="h-full w-full flex-1 bg-blue-600 transition-all duration-300 ease-in-out"
+      style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+    />
+  </ProgressPrimitive.Root>
+))
+
+Progress.displayName = ProgressPrimitive.Root.displayName
 
 export { Progress }

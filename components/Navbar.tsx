@@ -19,11 +19,13 @@ interface UserProps {
   isLoading: boolean;
 }
 
-export default function NavBar({ loggedinuser, isLoading }: UserProps) {
+// FIXED: Destructured currentPath to pass navigation states cleanly into down-stream links
+export default function NavBar({ loggedinuser, currentPath, isLoading }: UserProps) {
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 flex justify-between items-center h-full">
-      <Link href="/" className="flex items-center gap-2">
-        <h1 className="text-xl font-black text-zinc-900 tracking-tighter uppercase">
+    <div className="w-full max-w-7xl mx-auto px-6 flex justify-between items-center h-full font-sans select-none">
+      {/* Brand Identity Root Link */}
+      <Link href="/" className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded-lg">
+        <h1 className="text-xl font-black text-zinc-900 tracking-tighter uppercase italic leading-none">
           NURSEKONNEKT
         </h1>
       </Link>
@@ -37,11 +39,14 @@ export default function NavBar({ loggedinuser, isLoading }: UserProps) {
           </div>
         ) : (
           <>
-            <nav className="hidden md:block">
-              <NavItems loggedinuser={loggedinuser} />
+            {/* Desktop Navigation Tree Landmark */}
+            <nav className="hidden md:block" aria-label="Main Desktop Navigation">
+              <NavItems loggedinuser={loggedinuser} currentPath={currentPath} />
             </nav>
+            
+            {/* Mobile Navigation Dropdown Viewport Anchor */}
             <div className="md:hidden">
-              <MobileNavbar />
+              <MobileNavbar loggedinuser={loggedinuser} currentPath={currentPath} />
             </div>
           </>
         )}

@@ -1,0 +1,45 @@
+name: NurseKonnekt Frontend Continuous Integration Pipeline
+
+on:
+  push:
+    branches: [ main, master, staging ]
+  pull_request:
+    branches: [ main, master, staging ]
+
+jobs:
+  compile-and-validate:
+    name: Run Compilation & Linting Audits
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. CLONE THE SOURCE CODE REPOSITORY
+      - name: Checkout Code Matrix
+        uses: actions/checkout@v4
+
+      # 2. SETUP NODE ENVIRONMENT TO MATCH PRODUCTION METRICS
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      # 3. CONFIGURE INTERNET-FREE OPTIMIZATION VARIABLES
+      # Prevents the remote build machine from freezing on Google Fonts network requests
+      - name: Inject Baseline Build Properties
+        run: |
+          echo "NEXT_PUBLIC_API_URL=onrender.com" >> .env.local
+          echo "NEXT_PUBLIC_APP_NAME=NurseKonnekt" >> .env.local
+          echo "NEXT_PUBLIC_DEFAULT_CURRENCY=KES" >> .env.local
+
+      # 4. INSTALL DEPENDENCIES EXTENSIONS MATRIX
+      - name: Clean Install Project Dependencies
+        run: npm ci
+
+      # 5. RUN STRICT LINTING RULE CONTROLS
+      - name: Verify Code Code Quality (Linting)
+        run: npm run lint
+
+      # 6. TRIGGER OPTIMIZED PRODUCTION STATIC PAGES GENERATION
+      # This mimics your local successful build command exactly
+      - name: Compile Hardened Static Production Assets
+        run: npm run build
