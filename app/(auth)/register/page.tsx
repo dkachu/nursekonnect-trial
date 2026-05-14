@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Loader2, ShieldPlus, Check } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -30,12 +29,10 @@ export default function RegisterPage() {
 
     if (user) {
       redirectingRef.current = true;
-      
-      // FIXED: Direct lookup schema parsing bypasses union types compile blockers
-      const profile = user.profile;
+      const profile = (user as any).profile;
       const hasTown = typeof profile?.town === "string" && profile.town.trim().length > 0;
       const hasBuilding = typeof profile?.building === "string" && profile.building.trim().length > 0;
-      const isOnboarded = !!(hasTown && hasBuilding && user.is_synced);
+      const isOnboarded = !!(hasTown && hasBuilding && (user as any).is_synced);
       
       if (!isOnboarded) {
         router.replace("/setup");
@@ -66,10 +63,16 @@ export default function RegisterPage() {
         formData.is_patient
       );
       
-      if (!result.success && result.error) {
+      if (result && result.success) {
+        toast.success("Account Enrolled", { description: "Redirecting to validation terminal..." });
+        // FIXED: Explicit, bulletproof manual reroute to login page bounds if session cookies aren't returned inline
+        setTimeout(() => {
+          router.push("/login");
+        }, 1200);
+      } else if (result && result.error) {
         toast.error("Registration Refused", { description: result.error });
       }
-    } catch {
+    } catch (err) {
       toast.error("Registry Offline", { 
         description: "The registry node rejected the authorization handshake." 
       });
@@ -83,8 +86,7 @@ export default function RegisterPage() {
   if (authLoading && !user) {
     return (
       <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4">
-        <Loader2 className="animate-spin text-blue-600" size={36} />
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 animate-pulse">
+        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
           Synchronising Security Session...
         </p>
       </div>
@@ -92,11 +94,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="bg-white min-h-[95vh] flex items-center justify-center px-4 py-8 md:py-16 relative overflow-hidden font-sans select-none animate-in fade-in-50 duration-300">
+    <div className="bg-white min-h-[95vh] flex items-center justify-center px-4 py-8 md:py-16 relative overflow-hidden font-sans select-none">
       <div className="max-w-md w-full space-y-8 relative z-10 p-2">
         <div className="text-center space-y-3">
-          <div className="flex items-center justify-center gap-2 text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] italic">
-            <ShieldPlus size={14} className="animate-pulse" /> Enrolment Portal Gateway
+          <div className="text-blue-600 font-black text-[10px] uppercase tracking-widest italic">
+            Enrolment Portal Gateway
           </div>
           <h1 className="text-4xl font-black text-zinc-900 uppercase tracking-tighter italic leading-none">
             Registration
@@ -104,7 +106,6 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* FIXED: Changed from insecure clickable divs to structural semantic button selectors */}
           <div className="grid grid-cols-2 gap-4">
              <button 
                 type="button"
@@ -117,8 +118,8 @@ export default function RegisterPage() {
                       : "border-zinc-100 bg-zinc-50/80 text-zinc-400 font-bold hover:bg-zinc-100"
                 )}
              >
-                <span className="text-[10px] uppercase tracking-widest flex items-center gap-1">
-                  {formData.is_nurse && <Check size={10} />} PROFESSIONAL
+                <span className="text-[10px] uppercase tracking-widest">
+                  PROFESSIONAL
                 </span>
              </button>
 
@@ -133,8 +134,8 @@ export default function RegisterPage() {
                       : "border-zinc-100 bg-zinc-50/80 text-zinc-400 font-bold hover:bg-zinc-100"
                 )}
              >
-                <span className="text-[10px] uppercase tracking-widest flex items-center gap-1">
-                  {formData.is_patient && <Check size={10} />} RECIPIENT
+                <span className="text-[10px] uppercase tracking-widest">
+                  RECIPIENT
                 </span>
              </button>
           </div>
@@ -193,32 +194,17 @@ export default function RegisterPage() {
           <Button 
             disabled={isLoading}
             type="submit" 
-            className="w-full bg-zinc-950 hover:bg-blue-600 text-white h-16 rounded-2xl font-black text-xs uppercase tracking-widest border-none transition-all duration-200 shadow-xl active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+            className="w-full bg-blue-600 hover:bg-zinc-950 h-16 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all active:scale-[0.99] flex items-center justify-center text-white border-none cursor-pointer disabled:cursor-not-allowed"
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="animate-spin" size={14} />
-                <span>CREATING ENROLMENT PROFILE...</span>
-              </>
-            ) : (
-              <span>CREATE SECURE ENROLMENT</span>
-            )}
+            {isLoading ? "PROCESSING ENROLMENT..." : "CONFIRM REGISTER"}
           </Button>
-        </form>
 
-        <div className="pt-6 border-t border-dashed border-zinc-100 text-center space-y-4">
-          <Link 
-            href="/login" 
-            className="text-zinc-400 hover:text-blue-600 font-black text-xs uppercase tracking-widest transition-colors block no-underline hover:underline"
-          >
-            ALREADY REGISTERED? PROCEED TO LOGIN →
-          </Link>
-          <div className="flex items-center justify-center gap-1.5 text-zinc-300 select-none">
-            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">
-              NURSEKONNEKT CENTRAL APPOINTMENTS SYSTEMS REGISTRY
-            </p>
+          <div className="text-center">
+            <Link href="/login" className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-blue-600 transition-colors decoration-none">
+              Existing Account? Terminate & Login
+            </Link>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
