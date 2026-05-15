@@ -1,48 +1,28 @@
-name: NurseKonnekt Frontend Continuous Integration Pipeline
+name: NurseKonnect Frontend Cloud Compiler Pipeline
 
 on:
   push:
-    branches: [ main, master, staging ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main, master, staging ]
+    branches: [ main, master ]
 
 jobs:
-  compile-and-validate:
-    name: Run Compilation & Linting Audits
+  compile-production-build:
     runs-on: ubuntu-latest
-
+    
     steps:
-      # 1. CLONE THE SOURCE CODE REPOSITORY MATRIX
-      - name: Checkout Code Matrix
+      - name: 1. Checkout Codebase Repository Source Nodes
         uses: actions/checkout@v4
 
-      # 2. INITIALIZE HARDENED RUNTIME NODE CONTEXT ENVIRONMENT
-      - name: Setup Node.js Environment
+      - name: 2. Initialize Node.js High-Performance Environment
         uses: actions/setup-node@v4
         with:
-          node-version: 20 # Locked to project execution standards. Deprecation warnings do not fail the build process.
+          node-env: production
+          node-version: 20
           cache: 'npm'
 
-      # 3. INJECT NETWORKING PLATFORM VARIABLES
-      - name: Inject Baseline Build Properties
-        run: |
-          echo "NEXT_PUBLIC_API_URL=onrender.com" >> .env.local
-          echo "NEXT_PUBLIC_APP_NAME=NurseKonnekt" >> .env.local
-          echo "NEXT_PUBLIC_DEFAULT_CURRENCY=KES" >> .env.local
+      - name: 3. Restore and Install Project Package Dependencies Tree
+        run: npm ci
 
-      # 4. FIXED: Installs dependencies safely using a standard fallback pass if lockfile is missing
-      - name: Install Project Dependencies
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
-
-      # 5. RUN SYSTEM CHECKS
-      - name: Verify Code Quality (Linting)
-        run: npm run lint -- --fix-type layout || true
-
-      # 6. TRIGGER OPTIMIZED PRODUCTION STATIC PAGES COMPILATION
-      - name: Compile Hardened Static Production Assets
-        run: npm run build
+      - name: 4. Execute Webpack Multi-Stage Production Bundle Compilation
+        run: npx next build

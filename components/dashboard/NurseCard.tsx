@@ -1,0 +1,91 @@
+"use client";
+
+import React from "react";
+import { NurseProfile } from "@/types/nurse";
+import { ShieldCheck, MapPin, Award, Phone, Activity } from "lucide-react";
+
+interface NurseCardProps {
+  nurse: NurseProfile;
+  onSelect?: (nurse: NurseProfile) => void;
+}
+
+export default function NurseCard({ nurse, onSelect }: NurseCardProps) {
+  const displayName = nurse.user_details.email.includes("@")
+    ? nurse.user_details.email.split("@")[0]
+    : nurse.user_details.email;
+    
+  const distanceKm = nurse.distance ? parseFloat(nurse.distance) : null;
+  const isAvailableForDispatch = nurse.is_available && nurse.is_online;
+
+  return (
+    <div className="border border-solid border-zinc-200 rounded-2xl bg-white p-6 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between select-none">
+      <div className="space-y-4">
+        <div className="flex justify-between items-start gap-4">
+          <div>
+            <div className="flex items-center gap-1.5 text-blue-600 font-black text-[10px] uppercase tracking-wider mb-1">
+              <Activity size={10} className="animate-pulse" /> {nurse.specialization}
+            </div>
+            <h3 className="text-xl font-black text-zinc-900 tracking-tight capitalize break-all">
+              {displayName}
+            </h3>
+          </div>
+          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0 ${
+            isAvailableForDispatch
+              ? "bg-emerald-50 text-emerald-700" 
+              : "bg-zinc-100 text-zinc-500"
+          }`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${isAvailableForDispatch ? "bg-emerald-500 animate-pulse" : "bg-zinc-400"}`} />
+            {isAvailableForDispatch ? "Dispatch Active" : "Off-Duty"}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 text-xs text-zinc-600 bg-zinc-50 p-3 rounded-xl border border-solid border-zinc-100">
+          <div className="flex items-center gap-1.5">
+            <Award size={13} className="text-zinc-400" />
+            <span>{nurse.years_of_experience} Yrs Exp</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck size={13} className={`${nurse.is_verified ? "text-emerald-500" : "text-amber-500"}`} />
+            <span>{nurse.is_verified ? "Board Verified" : "Pending Audit"}</span>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 text-xs text-zinc-500 pt-1">
+          <div className="flex items-start gap-1.5">
+            <MapPin size={13} className="mt-0.5 shrink-0 text-zinc-400" />
+            <p className="line-clamp-2">
+              <strong>Sector:</strong> {nurse.building}, {nurse.town}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Phone size={13} className="text-zinc-400" />
+            <p><strong>Node:</strong> {nurse.user_details.phone_number}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 pt-4 border-t border-solid border-zinc-100 flex items-center justify-between gap-4">
+        <div>
+          {distanceKm !== null ? (
+            <p className="text-xs text-zinc-500">
+              Proximity: <span className="text-zinc-900 font-black text-sm">{distanceKm.toFixed(2)} km</span> away
+            </p>
+          ) : (
+            <p className="text-xs text-zinc-400 italic">Position unresolved</p>
+          )}
+        </div>
+        
+        {onSelect && (
+          <button
+            type="button"
+            onClick={() => onSelect(nurse)}
+            disabled={!isAvailableForDispatch}
+            className="bg-zinc-950 hover:bg-zinc-800 disabled:bg-zinc-100 text-white disabled:text-zinc-400 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer disabled:cursor-not-allowed transition-all border-none active:scale-[0.98]"
+          >
+            Request Care
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

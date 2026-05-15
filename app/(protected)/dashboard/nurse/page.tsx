@@ -14,7 +14,7 @@ interface StatsPayload {
   active_dispatches: number;
   gross_earnings: number;
   total_success: number;
-  registry_rating: string | number; // FIXED: Aligned type constraint directly with NurseStats component definitions
+  registry_rating: string | number;
 }
 
 export default function NurseProfilePage() {
@@ -56,7 +56,7 @@ export default function NurseProfilePage() {
         const ratedBookings = completed.filter(b => b.rating !== null && b.rating !== undefined);
         const avgRating = ratedBookings.length 
           ? (ratedBookings.reduce((sum, b) => sum + Number(b.rating), 0) / ratedBookings.length) 
-          : "5.0"; // FIXED: Baseline score string fallback prevents null value drops from breaking types
+          : "5.0";
 
         setStats({
           active_dispatches: res.data.filter(b => ["pending", "accepted", "in_progress"].includes(b.status)).length,
@@ -82,7 +82,7 @@ export default function NurseProfilePage() {
   const toggleDeploymentStatus = async () => {
     try {
       const nextStatus = !isOnline;
-      await api.patch("accounts/profile/update/", { is_available: nextStatus });
+      await api.put("accounts/profile/update/", { is_available: nextStatus });
       setIsOnline(nextStatus);
       toast.success(nextStatus ? "DEPLOYMENT CHANNEL ACTIVE" : "DEPLOYMENT CHANNEL DEACTIVATED");
     } catch {
@@ -101,7 +101,7 @@ export default function NurseProfilePage() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          await api.patch("accounts/profile/update/", {
+          await api.put("accounts/profile/update/", {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
           });
@@ -123,7 +123,7 @@ export default function NurseProfilePage() {
 
   if (loading || !user) {
     return (
-      <div className="h-screen w-full bg-white flex flex-col items-center justify-center bg-white gap-4">
+      <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4">
         <Loader2 className="animate-spin text-blue-600" size={36} />
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 animate-pulse">
           Synchronising Registry Handshake...

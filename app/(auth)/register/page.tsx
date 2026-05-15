@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export default function RegisterPage() {
       if (!isOnboarded) {
         router.replace("/setup");
       } else {
-        router.replace(isNurse ? "/profile" : "/dashboard");
+        router.replace(isNurse ? "/dashboard/nurse" : "/dashboard/patient");
       }
     }
   }, [user, authLoading, isNurse, router]);
@@ -65,7 +66,6 @@ export default function RegisterPage() {
       
       if (result && result.success) {
         toast.success("Account Enrolled", { description: "Redirecting to validation terminal..." });
-        // FIXED: Explicit, bulletproof manual reroute to login page bounds if session cookies aren't returned inline
         setTimeout(() => {
           router.push("/login");
         }, 1200);
@@ -196,15 +196,22 @@ export default function RegisterPage() {
             type="submit" 
             className="w-full bg-blue-600 hover:bg-zinc-950 h-16 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all active:scale-[0.99] flex items-center justify-center text-white border-none cursor-pointer disabled:cursor-not-allowed"
           >
-            {isLoading ? "PROCESSING ENROLMENT..." : "CONFIRM REGISTER"}
+            {isLoading ? (
+              <Loader2 className="animate-spin" size={14} />
+            ) : (
+              <span>CREATE ACCOUNT TERMINAL</span>
+            )}
           </Button>
-
-          <div className="text-center">
-            <Link href="/login" className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-blue-600 transition-colors decoration-none">
-              Existing Account? Terminate & Login
-            </Link>
-          </div>
         </form>
+
+        <div className="pt-6 border-t border-dashed border-zinc-100 text-center">
+          <Link 
+            href="/login" 
+            className="text-zinc-500 font-black text-xs uppercase tracking-widest hover:text-blue-600 transition-colors block no-underline hover:underline"
+          >
+            ← RETURN TO PASS TERMINAL
+          </Link>
+        </div>
       </div>
     </div>
   );

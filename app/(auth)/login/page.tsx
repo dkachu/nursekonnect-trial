@@ -43,7 +43,6 @@ function LoginContent() {
         return;
       }
 
-      // FIXED: Strict type property inspection maps parameter records explicitly from user.profile to bypass union leaks
       const profile = user.profile;
       const hasTown = typeof profile?.town === "string" && profile.town.trim().length > 0;
       const hasBuilding = typeof profile?.building === "string" && profile.building.trim().length > 0;
@@ -52,7 +51,8 @@ function LoginContent() {
       if (!isOnboarded) {
         router.replace("/setup");
       } else {
-        router.replace(isNurse ? "/profile" : "/dashboard");
+        // Aligned directly with your refactored middleware paths configurations matrices
+        router.replace(isNurse ? "/dashboard/nurse" : "/dashboard/patient");
       }
     }
   }, [user, authLoading, isNurse, router, redirectParam]);
@@ -67,7 +67,7 @@ function LoginContent() {
         toast.error("Authentication Failed", { description: result.error });
       }
     } catch {
-      toast.error("Network Timeout", { description: "The central authorization  rejected the transaction handshake." });
+      toast.error("Network Timeout", { description: "The central authorization rejected the transaction handshake." });
     } finally {
       setLocalLoading(false);
     }
