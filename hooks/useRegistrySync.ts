@@ -15,14 +15,13 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
 
   const getSocketUrl = (): string => {
     const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:10000/api/";
     
     const baseHost = apiUrl
       .replace(/^https?:\/\//, "")
       .replace(/\/api\/?$/, "")
       .replace(/\/$/, "");
 
-    // FIXED: Formats endpoint paths to match your accounts/routing.py ASGI routing precisely
     return `${wsScheme}://${baseHost}/ws/api/accounts/registry/`;
   };
 
@@ -64,7 +63,9 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
             });
           }
           
-          onNewDispatch(); 
+          if (typeof onNewDispatch === "function") {
+            onNewDispatch(); 
+          }
         }
       } catch (error) {
         console.error("Failed to decode real-time incoming signal string:", error);
@@ -75,7 +76,6 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
       setIsConnected(false);
       socketRef.current = null;
 
-      // Avoid looping reconnections if the socket session terminates cleanly via unmounting codes
       if (event.code !== 1000 && event.code !== 1001) {
         const maxDelay = 30000;
         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), maxDelay);
