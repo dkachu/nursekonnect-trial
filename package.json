@@ -10,6 +10,7 @@
     "clean": "rimraf .next"
   },
   "dependencies": {
+    "autoprefixer": "^10.5.0",
     "axios": "^1.6.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.300.0",

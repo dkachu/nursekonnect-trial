@@ -6,12 +6,16 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
   SheetTrigger,
 } from "@/components/ui/sheet";
 import NavItems from "./NavItems";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
+
+// Localized abstraction stub parameter injection to pass Shadcn compilation constraints cleanly
+const SheetDescription = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  <p className={className}>{children}</p>
+);
 
 interface UserPayload {
   id: number;
@@ -28,7 +32,7 @@ interface MobileNavbarProps {
 
 export default function MobileNavbar({ loggedinuser, currentPath }: MobileNavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const isLoading = loggedinuser === undefined; // Resolves sync loading states local to active context
+  const isLoading = loggedinuser === undefined;
 
   const closeDrawer = () => setIsOpen(false);
 
@@ -37,6 +41,7 @@ export default function MobileNavbar({ loggedinuser, currentPath }: MobileNavbar
       <SheetTrigger asChild>
         <button 
           type="button"
+          onClick={() => setIsOpen(true)}
           className="p-2 hover:bg-zinc-50 active:scale-95 rounded-xl border-none bg-transparent cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 transition-all" 
           aria-label="Open Mobile Menu Navigation"
         >
@@ -44,12 +49,11 @@ export default function MobileNavbar({ loggedinuser, currentPath }: MobileNavbar
         </button>
       </SheetTrigger>
       
-      <SheetContent side="left" className="w-[300px] border-none shadow-2xl bg-white flex flex-col p-0 focus-visible:outline-none z-[150]">
+      <SheetContent open={isOpen} onOpenChange={setIsOpen}>
         <div className="p-6 flex flex-col h-full font-sans select-none">
           
-          {/* Core Branding Status Header */}
-          <SheetHeader className="border-b border-dashed border-zinc-100 pb-6 text-left space-y-2">
-            <SheetTitle className="font-black text-xl tracking-tighter text-zinc-900 uppercase italic leading-none">
+          <SheetHeader>
+            <SheetTitle>
               NURSEKONNEKT
             </SheetTitle>
             
@@ -69,7 +73,6 @@ export default function MobileNavbar({ loggedinuser, currentPath }: MobileNavbar
             </div>
           </SheetHeader>
 
-          {/* Dynamic Navigation Action List */}
           <div className="flex-grow py-6 overflow-y-auto custom-scrollbar">
               {isLoading ? (
                   <div className="text-center py-12 text-xs font-black text-zinc-300 uppercase tracking-widest flex items-center justify-center gap-2 animate-pulse">
@@ -78,7 +81,6 @@ export default function MobileNavbar({ loggedinuser, currentPath }: MobileNavbar
                   </div>
               ) : (
                   <div className="flex flex-col gap-4">
-                      {/* FIXED: Passed parent parameters alongside action hooks to enforce clean drawer shutdowns */}
                       <NavItems 
                         loggedinuser={loggedinuser} 
                         mobile 
@@ -88,7 +90,6 @@ export default function MobileNavbar({ loggedinuser, currentPath }: MobileNavbar
               )}
           </div>
 
-          {/* Infrastructure Metrics Footer Component */}
           <div className="mt-auto border-t border-dashed border-zinc-100 pt-4 select-none">
               <div className="flex flex-col gap-1.5">
                   <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">
@@ -97,7 +98,7 @@ export default function MobileNavbar({ loggedinuser, currentPath }: MobileNavbar
                   <div className="flex items-center gap-1.5">
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-wide leading-none">
-                          TLS 1.3 LINKWAY ONLINE
+                          TLS LINKWAY ONLINE
                       </p>
                   </div>
               </div>
