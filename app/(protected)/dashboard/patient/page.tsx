@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
-import { Loader2, Activity, ShieldAlert, MapPin, Users } from "lucide-react";
+import { Loader2, Activity, ShieldAlert, MapPin, Users, Send } from "lucide-react";
 import { NurseProfile } from "@/types/nurse";
 import NurseCard from "@/components/dashboard/NurseCard";
+import { useRegistrySync } from "@/hooks/useRegistrySync";
 import { toast } from "sonner";
 
 interface UserDetails {
@@ -28,6 +29,24 @@ export default function PatientDashboardPage() {
   const [nursesLoading, setNursesLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [allocationRequestingId, setAllocationRequestingId] = useState<number | null>(null);
+
+  // Fallback function passed to useRegistrySync to capture and re-verify nearby records on changes
+  const handleIncomingTelemetryUpdate = useCallback(() => {
+    if (typeof window !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setNursesLoading(true);
+        api.get(`/api/accounts/nurses/nearby/`, {
+          params: { lat: pos.coords.latitude, lng: pos.coords.longitude, radius: 5000 }
+        }).then(res => setNurses(res.data)).catch(console.error).finally(() => setNursesLoading(false));
+      });
+    }
+  }, []);
+
+  // Initialize the live asynchronous global updates socket link channel hook natively
+  const { sendWebSocketMessage } = useRegistrySync({
+    onNewDispatch: handleIncomingTelemetryUpdate
+  });
 
   const fetchNearbyNurses = useCallback(async (latitude: number, longitude: number) => {
     setNursesLoading(true);
@@ -57,7 +76,7 @@ export default function PatientDashboardPage() {
             },
             (geoErr) => {
               console.warn("GPS tracking access missing, using fallback:", geoErr.message);
-              fetchNearbyNurses(-0.6972, 36.9328); 
+              fetchNearbyNurses(-0.6972, 36.9328); // Fallback to Kigumo
             },
             { enableHighAccuracy: true, timeout: 10000 }
           );
@@ -69,11 +88,44 @@ export default function PatientDashboardPage() {
       });
   }, [fetchNearbyNurses]);
 
-  const handleDispatchAllocation = (nurse: NurseProfile) => {
-    const name = nurse.user_details.email.split("@")[0];
-    toast.info("Initializing Allocation Link", {
-      description: `Establishing direct line with practitioner: ${name}`
-    });
+  // FIXED: Fully wired transactional handler links action buttons to backend mutations and socket broadcasts
+  const handleDispatchAllocation = async (nurse: NurseProfile) => {
+    setAllocationRequestingId(nurse.id);
+    const clinicianName = nurse.user_details.email.split("@")[0];
+
+    const allocationPayload = {
+      nurse: nurse.id,
+      service_description: `Emergency medical home care request dispatch allocated to practitioner node reference ${nurse.license_number}.`,
+      scheduled_date: new Date().toISOString().split("T")[0] // Maps standard format YYYY-MM-DD
+    };
+
+    try {
+      // 1. Dispatch structural database entry creation pass
+      const res = await api.post("/api/bookings/", allocationPayload);
+
+      if (res.status === 201 || res.status === 200) {
+        toast.success("CARE DISPATCH ALLOCATED", {
+          description: `Direct allocation link established securely with practitioner: ${clinicianName}`
+        });
+
+        // 2. Programmatically broadcast immediate socket alarm packet to trigger audio-visual prompts on clinician's terminal
+        sendWebSocketMessage({
+          type: "PERSONAL_ALERT",
+          payload: {
+            action: "NEW_REQUEST",
+            booking_id: res.data.id,
+            patient_name: data?.user_details.email.split("@")[0] || "Patient Node ID",
+            service_description: allocationPayload.service_description
+          }
+        });
+      }
+    } catch (err: any) {
+      console.error("Care request dispatch failed:", err);
+      const errorDetail = err.response?.data?.error || "The routing engine refused the transaction assignment.";
+      toast.error("Allocation Request Refused", { description: errorDetail });
+    } finally {
+      setAllocationRequestingId(null);
+    }
   };
 
   if (loading || !data) {
@@ -166,7 +218,7 @@ export default function PatientDashboardPage() {
                 <NurseCard 
                   key={nurse.id} 
                   nurse={nurse} 
-                  onSelect={handleDispatchAllocation}
+                  onSelect={allocationRequestingId === nurse.id ? undefined : handleDispatchAllocation} 
                 />
               ))}
             </div>

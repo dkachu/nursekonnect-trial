@@ -1,197 +1,245 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react"; 
-import { useAuth } from "@/context/AuthContext";
+import React, { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
-import { toast } from "sonner";
-import { Loader2, Activity, ShieldCheck, Radio } from "lucide-react";
-import AppointmentsList from "@/components/dashboard/AppointmentsList";
-import NurseStats from "@/components/dashboard/NurseStats"; 
-import { useProfessionalHeartbeat } from "@/hooks/useProfessionalHeartbeat";
+import { Loader2, Activity, ShieldCheck, Radio, Check, X, MapPin, User, Clock } from "lucide-react";
 import { useRegistrySync } from "@/hooks/useRegistrySync";
+import NurseStats from "@/components/dashboard/NurseStats";
 
-interface StatsPayload {
-  active_dispatches: number;
-  gross_earnings: number;
-  total_success: number;
-  registry_rating: string | number;
+import { toast } from "sonner";
+import AppointmentsList from "@/components/dashboard/AppointmentsList";
+
+interface UserDetails {
+  id: number;
+  email: string;
+  phone_number: string;
+  is_nurse: boolean;
 }
 
-export default function NurseProfilePage() {
-  const { user, loading, refreshUser } = useAuth();
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [stats, setStats] = useState<StatsPayload | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [isOnline, setIsOnline] = useState(false);
-  const didFetchInitial = useRef(false);
+interface NurseProfile {
+  id: number;
+  specialization: string;
+  years_of_experience: number;
+  town: string;
+  building: string;
+  license_number: string;
+  is_verified: boolean;
+  is_available: boolean;
+  is_online: boolean;
+}
 
-  useEffect(() => {
-    if (user?.profile) {
-      setIsOnline(!!user.profile.is_available);
-    }
-  }, [user]);
+interface LiveBooking {
+  id: number;
+  patient_email: string;
+  patient_phone: string;
+  service_description: string;
+  scheduled_date: string;
+  status: "pending" | "accepted" | "in_progress" | "completed" | "declined" | "cancelled";
+  is_verified_arrival: boolean;
+}
 
-  const { isConnected, sendWebSocketMessage } = useRegistrySync({
-    onNewDispatch: () => {
-      fetchKPIs();
-    }
-  });
+export default function NurseDashboardPage() {
+  const [profileData, setProfileData] = useState<{ user_details: UserDetails; profile: NurseProfile } | null>(null);
+  const [activeDispatches, setActiveDispatches] = useState<LiveBooking[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [dispatchesLoading, setDispatchesLoading] = useState<boolean>(false);
+  const [mutatingId, setMutatingId] = useState<number | null>(null);
 
-  useProfessionalHeartbeat({
-    isNurse: !!user?.is_nurse,
-    isOnline: isOnline,
-    isAvailable: isOnline,
-    socketConnected: isConnected,
-    sendWebSocketMessage: sendWebSocketMessage
-  });
-
-  const fetchKPIs = useCallback(async () => {
-    setStatsLoading(true);
+  // Synchronize live incoming allocations data vectors automatically when WebSockets alert channels fire
+  const fetchActiveDispatches = useCallback(async () => {
+    setDispatchesLoading(true);
     try {
-      const res = await api.get("bookings/active/");
-      
-      if (Array.isArray(res.data)) {
-        const completed = res.data.filter(b => b.status === "completed");
-        const earnings = completed.reduce((sum, b) => sum + (Number(b.price) || 0), 0);
-        const ratedBookings = completed.filter(b => b.rating !== null && b.rating !== undefined);
-        const avgRating = ratedBookings.length 
-          ? (ratedBookings.reduce((sum, b) => sum + Number(b.rating), 0) / ratedBookings.length) 
-          : "5.0";
-
-        setStats({
-          active_dispatches: res.data.filter(b => ["pending", "accepted", "in_progress"].includes(b.status)).length,
-          gross_earnings: earnings,
-          total_success: completed.length,
-          registry_rating: avgRating
-        });
-      }
-    } catch (error) {
-      console.error("KPI synchronization failure across registry nodes:", error);
+      const res = await api.get("/api/bookings/active/");
+      setActiveDispatches(res.data);
+    } catch (err) {
+      console.error("Failed to sync structural booking layers:", err);
     } finally {
-      setStatsLoading(false);
+      setDispatchesLoading(false);
     }
   }, []);
 
+  // Wire up the live connection link consumer line
+  const { isConnected } = useRegistrySync({
+    onNewDispatch: fetchActiveDispatches
+  });
+
   useEffect(() => {
-    if (user && !didFetchInitial.current) {
-      fetchKPIs();
-      didFetchInitial.current = true;
-    }
-  }, [user, fetchKPIs]);
+    api.get("/api/accounts/profile/me/")
+      .then((res) => {
+        setProfileData(res.data);
+        setLoading(false);
+        fetchActiveDispatches();
+      })
+      .catch((err) => {
+        console.error("Account verification failure:", err);
+        toast.error("Handshake Refused", { description: "Re-authenticate to open care console tracks." });
+        setLoading(false);
+      });
+  }, [fetchActiveDispatches]);
 
-  const toggleDeploymentStatus = async () => {
+  // Handle lifecycle state updates via mutation flags back to bookings viewsets
+  const handleLifecycleMutation = async (bookingId: number, nextState: string, startSession = false) => {
+    setMutatingId(bookingId);
     try {
-      const nextStatus = !isOnline;
-      await api.put("accounts/profile/update/", { is_available: nextStatus });
-      setIsOnline(nextStatus);
-      toast.success(nextStatus ? "DEPLOYMENT CHANNEL ACTIVE" : "DEPLOYMENT CHANNEL DEACTIVATED");
-    } catch {
-      toast.error("Operation Rejected", { description: "Verify compliance locks and retry." });
+      const payload = startSession ? { start_session: true } : { status: nextState };
+      const res = await api.patch(`/api/bookings/${bookingId}/status/`, payload);
+
+      if (res.status === 200) {
+        toast.success("DISPATCH RECORD MUTATED", {
+          description: startSession 
+            ? "Arrival authenticated. Care timeline session marked live." 
+            : `Allocation record state successfully updated to ${nextState}.`
+        });
+        await fetchActiveDispatches();
+      }
+    } catch (err) {
+      console.error("Lifecycle mutation failed:", err);
+      toast.error("State Mutation Refused", { description: "The central core database rejected the lifecycle switch request." });
+    } finally {
+      setMutatingId(null);
     }
   };
 
-  const syncLocation = () => {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      return toast.error("Hardware Limitation", { description: "GPS hardware module is missing or unauthorized." });
-    }
-    
-    setIsSyncing(true);
-    const syncToast = toast.loading("Aligning baseline geographical data points...");
-    
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          await api.put("accounts/profile/update/", {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          });
-          toast.success("Base Coordinates Secured", { id: syncToast });
-          await refreshUser();
-        } catch {
-          toast.error("Synchronization Failed", { id: syncToast });
-        } finally {
-          setIsSyncing(false);
-        }
-      },
-      (error) => { 
-        setIsSyncing(false); 
-        toast.error("GPS Access Denied", { id: syncToast, description: error.message }); 
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-    );
-  };
-
-  if (loading || !user) {
+  if (loading || !profileData) {
     return (
       <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4">
         <Loader2 className="animate-spin text-blue-600" size={36} />
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 animate-pulse">
-          Synchronising Registry Handshake...
+          Retrieving Professional Diagnostics Pipeline...
         </p>
       </div>
     );
   }
 
-  const identityString = user.email || "Practitioner Account";
-  const displayName = identityString.includes("@") ? identityString.split("@")[0] : identityString;
-
   return (
-    <main className="max-w-7xl mx-auto p-6 lg:p-12 space-y-16 min-h-screen font-sans bg-white select-none">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 border-b border-dashed border-zinc-100 pb-12">
-        <div className="space-y-3">
-          <div className="flex items-center gap-2.5 text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] italic">
-            <Activity size={12} className="animate-pulse" /> Clinical Workspace
+    <main className="max-w-7xl mx-auto p-6 lg:p-12 space-y-12 min-h-screen font-sans bg-white select-none animate-in fade-in-50 duration-200">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-dashed border-zinc-100 pb-8">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] italic">
+            <Activity size={12} className="animate-pulse" /> Clinical Logistics Hub
           </div>
-          <h1 className="text-4xl md:text-6xl font-black text-zinc-900 tracking-tighter uppercase italic leading-none">
-            Hello, <span className="text-blue-600 not-italic">{displayName}</span>
+          <h1 className="text-3xl md:text-5xl font-black text-zinc-900 tracking-tighter uppercase italic leading-none">
+            Practitioner Terminal
           </h1>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-          <button 
-            type="button"
-            onClick={toggleDeploymentStatus}
-            className={`h-16 px-8 rounded-2xl font-black text-xs uppercase tracking-widest transition-all duration-200 cursor-pointer shadow-md flex items-center justify-center gap-2 border-none active:scale-[0.98] ${
-              isOnline 
-                ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
-                : "bg-zinc-50 hover:bg-zinc-100 text-zinc-500 border border-zinc-200"
-            }`}
-          >
-            <Radio size={14} className={isOnline ? "animate-spin duration-3000" : ""} />
-            <span>{isOnline ? "ONLINE FOR DISPATCH" : "GO ONLINE"}</span>
-          </button>
-
-          <button 
-            type="button"
-            onClick={syncLocation} 
-            disabled={isSyncing} 
-            className="bg-zinc-950 hover:bg-zinc-800 text-white h-16 px-8 rounded-2xl font-black text-xs uppercase tracking-widest border-none cursor-pointer shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSyncing ? <Loader2 className="animate-spin" size={14} /> : "⚡"}
-            <span>{isSyncing ? "CALIBRATING MATRICES..." : "SYNC BASE LOCATION"}</span>
-          </button>
+        <div className="flex items-center gap-3">
+          <span className={`px-3 py-1.5 rounded-xl border border-solid text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${
+            isConnected 
+              ? "bg-emerald-50 border-emerald-100 text-emerald-700" 
+              : "bg-red-50 border-red-100 text-red-700"
+          }`}>
+            <Radio size={12} className={isConnected ? "animate-pulse" : ""} />
+            {isConnected ? "Mesh Stream Connected" : "Tunnel Disconnected"}
+          </span>
         </div>
       </header>
 
-      <section className="space-y-6">
-        <div className="flex items-center gap-2.5">
-          <ShieldCheck size={16} className="text-zinc-400" />
-          <h2 className="text-xs font-black uppercase tracking-[0.25em] text-zinc-900 italic">
-            Registry Performance KPI Analytics
-          </h2>
-        </div>
-        <NurseStats stats={stats} loading={statsLoading} />
-      </section>
+      {/* Embedded Statistics Presentation Cards Matrix Row Component Layout */}
+      <NurseStats />
 
-      <section className="space-y-6">
-        <div className="flex items-center gap-2.5">
-          <Radio size={16} className="text-zinc-400" />
-          <h2 className="text-xs font-black uppercase tracking-[0.25em] text-zinc-900 italic">
-            Active Care Dispatches Queue
-          </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex items-center justify-between border-b border-solid border-zinc-100 pb-3">
+            <h3 className="text-xs font-black uppercase tracking-wider text-zinc-900 flex items-center gap-2">
+              <Clock size={14} className="text-blue-600" /> Incoming Realtime Care Requests Demand Queue
+            </h3>
+            {dispatchesLoading && <Loader2 className="animate-spin text-zinc-400" size={12} />}
+          </div>
+
+          {activeDispatches.length === 0 ? (
+            /* Skeletons loader fallbacks displayed if the current queue tracking arrays are blank */
+            <AppointmentsList />
+          ) : (
+            <div className="space-y-4">
+              {activeDispatches.map((booking) => (
+                <div key={booking.id} className="border border-solid border-zinc-200 rounded-2xl bg-white p-6 shadow-sm space-y-4 flex flex-col md:flex-row justify-between md:items-center gap-6">
+                  <div className="space-y-3 max-w-xl">
+                    <div className="flex items-center gap-3">
+                      <span className="bg-zinc-100 text-zinc-700 font-mono text-xs px-2 py-0.5 rounded-md font-bold">#ID-{booking.id}</span>
+                      <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full ${
+                        booking.status === "pending" ? "bg-amber-50 text-amber-700 border border-solid border-amber-100" :
+                        booking.status === "accepted" ? "bg-blue-50 text-blue-700 border border-solid border-blue-100" :
+                        "bg-purple-50 text-purple-700 border border-solid border-purple-100 animate-pulse"
+                      }`}>
+                        {booking.status}
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold text-zinc-800 leading-relaxed italic">"{booking.service_description}"</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-500 pt-1">
+                      <div className="flex items-center gap-1.5"><User size={13} /> <span>Patient Ref Key: {booking.patient_email}</span></div>
+                      <div className="flex items-center gap-1.5"><MapPin size={13} /> <span>Scheduled: {booking.scheduled_date}</span></div>
+                    </div>
+                  </div>
+
+                  {/* Operational Action command button interfaces blocks triggers handler lines */}
+                  <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
+                    {booking.status === "pending" && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={mutatingId !== null}
+                          onClick={() => handleLifecycleMutation(booking.id, "accepted")}
+                          className="bg-zinc-950 hover:bg-zinc-800 text-white h-11 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer border-none flex items-center gap-1.5 transition-all"
+                        >
+                          <Check size={12} /> Accept
+                        </button>
+                        <button
+                          type="button"
+                          disabled={mutatingId !== null}
+                          onClick={() => handleLifecycleMutation(booking.id, "declined")}
+                          className="bg-transparent hover:bg-red-50 text-zinc-500 hover:text-red-700 h-11 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer border border-solid border-zinc-200 hover:border-red-200 flex items-center gap-1.5 transition-all"
+                        >
+                          <X size={12} /> Decline
+                        </button>
+                      </>
+                    )}
+
+                    {booking.status === "accepted" && (
+                      <button
+                        type="button"
+                        disabled={mutatingId !== null}
+                        onClick={() => handleLifecycleMutation(booking.id, "in_progress", true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white h-11 px-5 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer border-none flex items-center gap-1.5 transition-all shadow-md"
+                      >
+                        <MapPin size={12} /> Authenticate Arrival
+                      </button>
+                    )}
+
+                    {booking.status === "in_progress" && (
+                      <button
+                        type="button"
+                        disabled={mutatingId !== null}
+                        onClick={() => handleLifecycleMutation(booking.id, "completed")}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white h-11 px-5 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer border-none flex items-center gap-1.5 transition-all shadow-md"
+                      >
+                        <Check size={12} /> Complete Care Session
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <AppointmentsList isNurse={true} useActiveOnly={true} onStatusUpdate={fetchKPIs} />
-      </section>
+
+        <div className="lg:col-span-1 bg-zinc-50 border border-solid border-zinc-200 rounded-2xl p-6 space-y-4">
+          <h4 className="text-xs font-black uppercase tracking-wider text-zinc-900 border-b border-solid border-zinc-200 pb-2 flex items-center gap-2">
+            <ShieldCheck size={14} className="text-blue-600" /> Practitioner Registration Credentials
+          </h4>
+          <div className="space-y-3 text-sm text-zinc-600">
+            <p><strong>Registry Sector:</strong> <span className="text-zinc-900 capitalize">{profileData.profile.town}</span></p>
+            <p><strong>Station Node:</strong> <span className="text-zinc-900">{profileData.profile.building}</span></p>
+            <p><strong>Specialty:</strong> <span className="text-zinc-900 text-xs px-2 py-0.5 bg-blue-50 text-blue-700 font-bold rounded-md">{profileData.profile.specialization}</span></p>
+            <p><strong>NCK License:</strong> <span className="text-zinc-900 font-mono text-xs">{profileData.profile.license_number}</span></p>
+            <p><strong>Experience:</strong> <span className="text-zinc-900">{profileData.profile.years_of_experience} Years Active</span></p>
+            <div className="pt-3 border-t border-solid border-zinc-200 flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${profileData.profile.is_verified ? "bg-emerald-500 animate-pulse" : "bg-zinc-400"}`} />
+              <p className="text-xs font-black uppercase tracking-wider text-zinc-500">Board Verification Clearance Active</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
