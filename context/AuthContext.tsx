@@ -1,3 +1,4 @@
+// context/AuthContext.tsx
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -61,11 +62,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const didFetch = useRef(false);
 
-  // Checks and updates user profile and coordinate parameters dynamically
+  // Fetch current patient or nurse profile records safely
   const refreshUser = useCallback(async (): Promise<UserDetails | null> => {
     try {
       const res = await api.get("accounts/profile/me/");
-      
       const data = res.data || {};
       const user_details = data.user_details || data;
       const profile = data.profile || {};
@@ -101,7 +101,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [refreshUser]);
 
-  // Transmits login credentials and routes to dashboard based on onboarding status
+  // Authenticate user credentials and evaluate onboarding layout status
   const login = useCallback(async (email: string, password: string): Promise<AuthResponse> => {
     try {
       await api.post("accounts/login/", { email, password });
@@ -116,29 +116,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (!isOnboarded) {
           router.push("/setup");
         } else if (userData.is_nurse) {
-          router.push("/profile");
+          router.push("/dashboard/nurse");
         } else {
-          router.push("/dashboard");
+          router.push("/dashboard/patient");
         }
         
-        toast.success("Authentication Verified");
+        toast.success("Welcome Back");
         return { success: true };
       }
       return { success: false };
     } catch (error: unknown) {
-      let message = "Registry rejection.";
+      let message = "We could not verify your details. Please check your spelling and try again.";
       if (error && typeof error === "object" && "response" in error) {
         const axiosError = error as { response?: { data?: APIErrorResponse } };
         message = axiosError.response?.data?.detail || 
                   axiosError.response?.data?.non_field_errors?.[0] || 
                   message;
       }
-      toast.error("Operation Rejected", { description: message });
+      toast.error("Sign In Issue", { description: message });
       return { success: false, error: message };
     }
   }, [refreshUser, router]);
 
-  // Registers the account profile, waits for completion, and triggers log-in cascade
+  // Submit new user profile payload to account registration endpoint
   const register = useCallback(async (
     email: string, 
     password: string, 
@@ -154,7 +154,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await new Promise((res) => setTimeout(res, 400));
       return await login(email, password);
     } catch (error: unknown) {
-      let firstError = "Enrolment refused.";
+      let firstError = "We could not set up your account profile. Please check your form information.";
       if (error && typeof error === "object" && "response" in error) {
         const axiosError = error as { response?: { data?: Record<string, string | string[]> } };
         const serverErrors = axiosError.response?.data;
@@ -162,21 +162,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           firstError = String(Object.values(serverErrors).flat()[0] || firstError);
         }
       }
-      toast.error("Operation Rejected", { description: firstError });
+      toast.error("Registration Issue", { description: firstError });
       return { success: false, error: firstError };
     }
   }, [login]);
 
-  // Clears live authentication cookies and destroys active session states
+  // Log out user and delete current session cookies safely
   const logout = useCallback(async (): Promise<void> => {
     try { 
       await api.post("accounts/logout/"); 
     } catch { 
-      console.warn("Clearing session state"); 
+      console.warn("Closing care account session"); 
     }
     setUser(null);
     router.push("/login");
-    toast.success("Session Terminated");
+    toast.success("Logged Out Successfully");
   }, [router]);
 
   const authValue = useMemo(() => ({
@@ -197,9 +197,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       {!loading ? (
         children
       ) : (
-        <div className="h-screen w-full flex flex-col items-center justify-center bg-white">
+        <div className="h-screen w-full flex flex-col items-center justify-center bg-white font-sans">
           <div className="text-center">
-            <p className="font-bold text-zinc-400 uppercase tracking-widest animate-pulse">Initializing Handshake...</p>
+            <p className="font-bold text-zinc-400 uppercase tracking-widest animate-pulse">Loading Your Care Portal...</p>
           </div>
         </div>
       )}

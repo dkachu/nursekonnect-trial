@@ -1,3 +1,4 @@
+// lib/api.ts
 import axios, { InternalAxiosRequestConfig } from 'axios';
 
 interface FailedRequest {
@@ -7,17 +8,23 @@ interface FailedRequest {
 
 const isProd = process.env.NODE_ENV === 'production';
 
-// Synchronizes the base URL mapping structure safely to handle both local and cloud environments
+// Safely format endpoint paths for both local containers and cloud deployment hosts
 const getBaseUrl = (): string => {
-    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+    const rawUrl = process.env.NEXT_PUBLIC_API_URL;
+    
+    if (rawUrl) {
+        const cleanUrl = rawUrl.endsWith('/') ? rawUrl : `${rawUrl}/`;
+        return cleanUrl.includes('/api/') ? cleanUrl : `${cleanUrl}api/`;
+    }
+    
     return isProd
-        ? `https://${process.env.NEXT_PUBLIC_API_DOMAIN || 'nursekonnect-back.onrender.com'}/api/`
+        ? 'https://onrender.com'
         : 'http://localhost:10000/api/';
 };
 
 const api = axios.create({
     baseURL: getBaseUrl(), 
-    withCredentials: true, // Crucial for passing SimpleJWT access_token HTTP cookies to Render safely
+    withCredentials: true, 
     timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
@@ -30,7 +37,7 @@ const api = axios.create({
 let isRefreshing = false;
 let failedQueue: FailedRequest[] = [];
 
-// Intercepts outbound frames to inject native Django CSRF tokens from browser cookie states
+// Inject current Django cross-site request tokens to outbound headers
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     if (typeof document !== "undefined" && !config.headers['X-CSRFToken']) {
         const value = document.cookie
@@ -45,7 +52,7 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     return config;
 });
 
-// Asynchronous interceptor loop to catch 401 Session Drops and auto-refresh credentials
+// Intercept expired authentication errors to handle session updates automatically
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -56,7 +63,6 @@ api.interceptors.response.use(
         }
 
         const urlPath = originalRequest.url || '';
-        // Skip fallback execution logic loops for core gateway auth routes
         if (urlPath.includes("accounts/token/refresh/") || urlPath.includes("accounts/login/")) {
             return Promise.reject(error);
         }
@@ -74,7 +80,6 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                // Hits your custom CookieTokenRefreshView inside accounts/views.py over safe cross-origin cookies
                 await api.post("accounts/token/refresh/");
                 
                 const currentQueue = [...failedQueue];
@@ -92,7 +97,6 @@ api.interceptors.response.use(
                 
                 currentQueue.forEach(prom => prom.reject(refreshError));
                 
-                // Evict the client and route cleanly to login state routes if the session refresh falls flat
                 if (typeof window !== "undefined") {
                     const publicRoutes = ["/login", "/register", "/"];
                     if (!publicRoutes.includes(window.location.pathname)) {
