@@ -18,11 +18,16 @@ export const useBookingSocket = (onMessageReceived) => {
       return;
     }
 
-    const isProd = process.env.NEXT_PUBLIC_NODE_ENV === 'production';
-    const wsUrl = isProd
-      ? `wss://${process.env.NEXT_PUBLIC_API_DOMAIN}/ws/bookings/`
-      : `ws://127.0.0.1:10000/ws/bookings/`;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:10000/api/";
+    const baseHost = apiUrl
+      .replace(/^https?:\/\//, "")
+      .replace(/\/api\/?$/, "")
+      .replace(/\/$/, "");
+
+    const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+    const wsUrl = `${wsScheme}://${baseHost}/ws/bookings/`;
     
+    console.log(`[Booking Socket] Opening stream to: ${wsUrl}`);
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
 
@@ -36,12 +41,12 @@ export const useBookingSocket = (onMessageReceived) => {
         const data = JSON.parse(event.data);
         if (stableOnMessage) stableOnMessage(data);
       } catch (err) {
-        console.error(err);
+        console.error("[Booking Socket] Frame parsing error:", err);
       }
     };
 
     ws.onerror = (error) => {
-      console.error(error);
+      console.error("[Booking Socket] Channel error caught:", error);
     };
 
     ws.onclose = (event) => {

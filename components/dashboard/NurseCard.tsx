@@ -2,7 +2,6 @@
 
 import React from "react";
 import { NurseProfile } from "@/types/nurse";
-import { ShieldCheck, MapPin, Award, Phone, Activity } from "lucide-react";
 
 interface NurseCardProps {
   nurse: NurseProfile;
@@ -10,6 +9,7 @@ interface NurseCardProps {
 }
 
 export default function NurseCard({ nurse, onSelect }: NurseCardProps) {
+  // Graceful email prefix fallback logic for user tracking aliases
   const displayName = nurse.user_details.email.includes("@")
     ? nurse.user_details.email.split("@")[0]
     : nurse.user_details.email;
@@ -23,7 +23,7 @@ export default function NurseCard({ nurse, onSelect }: NurseCardProps) {
         <div className="flex justify-between items-start gap-4">
           <div>
             <div className="flex items-center gap-1.5 text-blue-600 font-black text-[10px] uppercase tracking-wider mb-1">
-              <Activity size={10} className="animate-pulse" /> {nurse.specialization}
+              {nurse.specialization}
             </div>
             <h3 className="text-xl font-black text-zinc-900 tracking-tight capitalize break-all">
               {displayName}
@@ -41,24 +41,22 @@ export default function NurseCard({ nurse, onSelect }: NurseCardProps) {
 
         <div className="grid grid-cols-2 gap-3 text-xs text-zinc-600 bg-zinc-50 p-3 rounded-xl border border-solid border-zinc-100">
           <div className="flex items-center gap-1.5">
-            <Award size={13} className="text-zinc-400" />
             <span>{nurse.years_of_experience} Yrs Exp</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <ShieldCheck size={13} className={`${nurse.is_verified ? "text-emerald-500" : "text-amber-500"}`} />
-            <span>{nurse.is_verified ? "Board Verified" : "Pending Audit"}</span>
+            <span className={nurse.is_verified ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>
+              {nurse.is_verified ? "Board Verified" : "Pending Audit"}
+            </span>
           </div>
         </div>
 
         <div className="space-y-1.5 text-xs text-zinc-500 pt-1">
           <div className="flex items-start gap-1.5">
-            <MapPin size={13} className="mt-0.5 shrink-0 text-zinc-400" />
             <p className="line-clamp-2">
               <strong>Sector:</strong> {nurse.building}, {nurse.town}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
-            <Phone size={13} className="text-zinc-400" />
             <p><strong>Node:</strong> {nurse.user_details.phone_number}</p>
           </div>
         </div>
@@ -68,7 +66,7 @@ export default function NurseCard({ nurse, onSelect }: NurseCardProps) {
         <div>
           {distanceKm !== null ? (
             <p className="text-xs text-zinc-500">
-              Proximity: <span className="text-zinc-900 font-black text-sm">{distanceKm.toFixed(2)} km</span> away
+              Proximity: <span className="text-zinc-900 font-black text-sm">{(distanceKm / 1000).toFixed(2)} km</span> away
             </p>
           ) : (
             <p className="text-xs text-zinc-400 italic">Position unresolved</p>

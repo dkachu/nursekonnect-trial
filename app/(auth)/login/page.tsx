@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Loader2, ShieldCheck, Fingerprint } from "lucide-react";
 
 function LoginContent() {
   const [email, setEmail] = useState<string>("");
@@ -24,6 +23,7 @@ function LoginContent() {
   const sessionExpired = searchParams.get("session") === "expired";
   const redirectParam = searchParams.get("redirect");
 
+  // Display security session termination alerts gracefully on context mounts
   useEffect(() => {
     if (sessionExpired && !redirectingRef.current) {
       toast.error("Session Expired", { 
@@ -32,6 +32,7 @@ function LoginContent() {
     }
   }, [sessionExpired]);
 
+  // Evaluates user role tracking models and enforces routing destination shifts
   useEffect(() => {
     if (authLoading || redirectingRef.current) return;
 
@@ -51,12 +52,13 @@ function LoginContent() {
       if (!isOnboarded) {
         router.replace("/setup");
       } else {
-        // Aligned directly with your refactored middleware paths configurations matrices
+        // Aligned precisely to match your role tracking routing blueprints
         router.replace(isNurse ? "/dashboard/nurse" : "/dashboard/patient");
       }
     }
   }, [user, authLoading, isNurse, router, redirectParam]);
 
+  // Submits credentials records securely back to your api routing interceptor
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLocalLoading(true);
@@ -77,8 +79,7 @@ function LoginContent() {
 
   if (authLoading && !user) {
     return (
-      <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4">
-        <Loader2 className="animate-spin text-blue-600" size={36} />
+      <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4 font-sans">
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 animate-pulse">
           Synchronising Security Session...
         </p>
@@ -90,8 +91,8 @@ function LoginContent() {
     <div className="bg-white min-h-[95vh] flex items-center justify-center px-4 py-8 md:py-16 relative overflow-hidden font-sans select-none animate-in fade-in-50 duration-300">
       <div className="max-w-md w-full space-y-8 relative z-10 p-2">
         <div className="text-center space-y-3">
-          <div className="flex items-center justify-center gap-2 text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] italic">
-            <ShieldCheck size={14} className="animate-pulse" /> Security Passport Layer
+          <div className="text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] italic">
+            Security Passport Layer
           </div>
           <h1 className="text-4xl font-black text-zinc-900 uppercase tracking-tighter italic leading-none">
             Authentication
@@ -139,15 +140,9 @@ function LoginContent() {
             className="w-full bg-zinc-950 hover:bg-blue-600 text-white h-16 rounded-2xl font-black text-xs uppercase tracking-widest border-none transition-all duration-200 shadow-xl active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
           >
             {isLoading ? (
-              <>
-                <Loader2 className="animate-spin" size={14} />
-                <span>VERIFYING CREDENTIALS...</span>
-              </>
+              <span>VERIFYING CREDENTIALS...</span>
             ) : (
-              <>
-                <Fingerprint size={14} />
-                <span>ENTER SECURE APP HUB</span>
-              </>
+              <span>ENTER SECURE APP HUB</span>
             )}
           </Button>
         </form>
@@ -174,7 +169,6 @@ export default function LoginPage() {
   return (
     <Suspense fallback={
       <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4 font-sans">
-        <Loader2 className="animate-spin text-zinc-300" size={32} />
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-300 animate-pulse">
           LOADING ENTRY HUB MATRIX...
         </p>

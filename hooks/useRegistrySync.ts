@@ -13,6 +13,7 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef<number>(0);
 
+  // Normalize protocol and host to form matching ws endpoint
   const getSocketUrl = (): string => {
     const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:10000/api/";
@@ -25,6 +26,7 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
     return `${wsScheme}://${baseHost}/ws/api/accounts/registry/`;
   };
 
+  // Instantiates WebSocket and establishes client lifecycle handling
   const connectWebSocket = useCallback(() => {
     if (typeof window === "undefined") return;
 
@@ -41,6 +43,7 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
       try {
         const data = JSON.parse(event.data);
         
+        // Handles structured backend envelopes cleanly
         if (data.type === "PERSONAL_ALERT" && data.payload) {
           const action = data.payload.action;
 
@@ -72,6 +75,7 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
       }
     };
 
+    // Exponential backoff strategy to safely handle connection drops
     socket.onclose = (event) => {
       setIsConnected(false);
       socketRef.current = null;
@@ -93,6 +97,7 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
     };
   }, [onNewDispatch]);
 
+  // Safe outbound wrapper ensuring thread pipeline sanity
   const sendWebSocketMessage = useCallback((payload: object) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify(payload));
@@ -104,6 +109,7 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
   useEffect(() => {
     connectWebSocket();
 
+    // Prevent active connection memory leaks during unmounts
     return () => {
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (socketRef.current) {

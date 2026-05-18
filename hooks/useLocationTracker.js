@@ -9,47 +9,50 @@ export const useLocationTracker = (patientId, isActive = false) => {
   const socketRef = useRef(null);
   const geoWatcherRef = useRef(null);
 
-  // 1. Establish the dedicated Spatial Registry Socket tunnel
+  // Parse websocket route configuration using unified api variables
   const connectRegistrySocket = useCallback(() => {
     if (typeof window === 'undefined' || !patientId || !isActive) return;
 
-    // Prevent duplicate active connections
     if (socketRef.current && (socketRef.current.readyState === WebSocket.CONNECTING || socketRef.current.readyState === WebSocket.OPEN)) {
       return;
     }
 
-    const isProd = process.env.NEXT_PUBLIC_NODE_ENV === 'production';
-    const wsUrl = isProd
-      ? `wss://${process.env.NEXT_PUBLIC_API_DOMAIN}/ws/registry/`
-      : `ws://127.0.0.1:10000/ws/registry/`;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0";
+    const baseHost = apiUrl
+      .replace(/^https?:\/\//, "")
+      .replace(/\/api\/?$/, "")
+      .replace(/\/$/, "");
 
-    console.log(`📡 [Telemetry] Connecting to Spatial Registry Hub: ${wsUrl}`);
+    const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+    const wsUrl = `${wsScheme}://${baseHost}/ws/api/accounts/registry/`;
+
+    console.log(`[Socket] Connecting to spatial registry: ${wsUrl}`);
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
 
     ws.onopen = () => {
-      console.log('✅ [Telemetry] Spatial Registry socket open.');
+      console.log('[Socket] Spatial link accepted.');
       setIsStreaming(true);
     };
 
     ws.onclose = () => {
       setIsStreaming(false);
-      console.log('🔌 [Telemetry] Spatial Registry socket disconnected.');
+      console.log('[Socket] Spatial link closed.');
     };
 
     ws.onerror = (err) => {
-      console.error('❌ [Telemetry] Socket error:', err);
+      console.error('[Socket] Thread error encountered:', err);
     };
   }, [patientId, isActive]);
 
-  // 2. High-Accuracy Geolocation Stream Watcher loop
+  // Track high-accuracy hardware sensor readings streams
   const startLocationWatcher = useCallback(() => {
     if (typeof window === 'undefined' || !('geolocation' in navigator) || !isActive) return;
 
     const geoOptions = {
-      enableHighAccuracy: true, // Forces physical GPS modules instead of approximate IP tower parsing
-      timeout: 10000,           // Throw error if hardware takes longer than 10s to acquire lock
-      maximumAge: 0,            // Prevent returning stale coordinates from memory cache
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
     };
 
     geoWatcherRef.current = navigator.geolocation.watchPosition(
@@ -60,12 +63,11 @@ export const useLocationTracker = (patientId, isActive = false) => {
         };
 
         setCoordinates(currentCoords);
-        console.log(`📍 [GPS] Telemetry Updated: [Lat: ${currentCoords.lat}, Lng: ${currentCoords.lng}]`);
 
-        // 3. Emit the updated matrix data to the RegistryConsumer mapping target
+        // Emit formatted packet structure to matching backend registry consumers
         if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
           socketRef.current.send(
-            json.stringify({
+            JSON.stringify({
               action: 'TRANSMIT_LOCATION_DATA',
               patient_id: patientId,
               coordinates: currentCoords,
@@ -74,7 +76,7 @@ export const useLocationTracker = (patientId, isActive = false) => {
         }
       },
       (error) => {
-        console.error(`❌ [GPS] Sensor capture error (Code ${error.code}):`, error.message);
+        console.error(`[Sensor] GPS capture exception: ${error.message}`);
       },
       geoOptions
     );
@@ -86,7 +88,7 @@ export const useLocationTracker = (patientId, isActive = false) => {
       startLocationWatcher();
     }
 
-    // 4. Memory Leak Teardown Protection: Clears telemetry sensors and sockets completely
+    // Teardown connections and sensors to block component memory leaks
     return () => {
       if (geoWatcherRef.current !== null && typeof window !== 'undefined') {
         navigator.geolocation.clearWatch(geoWatcherRef.current);

@@ -61,11 +61,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const didFetch = useRef(false);
 
+  // Checks and updates user profile and coordinate parameters dynamically
   const refreshUser = useCallback(async (): Promise<UserDetails | null> => {
     try {
       const res = await api.get("accounts/profile/me/");
       
-      // FIX: Flexible extraction checks both nested and flat response payload structures
       const data = res.data || {};
       const user_details = data.user_details || data;
       const profile = data.profile || {};
@@ -101,6 +101,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [refreshUser]);
 
+  // Transmits login credentials and routes to dashboard based on onboarding status
   const login = useCallback(async (email: string, password: string): Promise<AuthResponse> => {
     try {
       await api.post("accounts/login/", { email, password });
@@ -112,7 +113,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const hasBuilding = typeof profile.building === "string" && profile.building.trim().length > 0;
         const isOnboarded = !!(hasTown && hasBuilding);
         
-        // FIXED: Enforce absolute clean routing redirection switches using safe casting
         if (!isOnboarded) {
           router.push("/setup");
         } else if (userData.is_nurse) {
@@ -138,6 +138,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [refreshUser, router]);
 
+  // Registers the account profile, waits for completion, and triggers log-in cascade
   const register = useCallback(async (
     email: string, 
     password: string, 
@@ -166,6 +167,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [login]);
 
+  // Clears live authentication cookies and destroys active session states
   const logout = useCallback(async (): Promise<void> => {
     try { 
       await api.post("accounts/logout/"); 

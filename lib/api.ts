@@ -5,18 +5,19 @@ interface FailedRequest {
   reject: (error: unknown) => void;
 }
 
-const isProd = process.env.NEXT_PUBLIC_NODE_ENV === 'production' || process.env.NODE_ENV === 'production';
+const isProd = process.env.NODE_ENV === 'production';
 
+// Synchronizes the base URL mapping structure safely to handle both local and cloud environments
 const getBaseUrl = (): string => {
     if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
     return isProd
-        ? `https://${process.env.NEXT_PUBLIC_API_DOMAIN || 'onrender.com'}/api/`
+        ? `https://${process.env.NEXT_PUBLIC_API_DOMAIN || 'nursekonnect-back.onrender.com'}/api/`
         : 'http://localhost:10000/api/';
 };
 
 const api = axios.create({
     baseURL: getBaseUrl(), 
-    withCredentials: true,
+    withCredentials: true, // Crucial for passing SimpleJWT access_token HTTP cookies to Render safely
     timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
@@ -29,14 +30,7 @@ const api = axios.create({
 let isRefreshing = false;
 let failedQueue: FailedRequest[] = [];
 
-const processQueue = (error: unknown) => {
-    failedQueue.forEach((prom) => {
-        if (error) prom.reject(error);
-        else prom.resolve();
-    });
-    failedQueue = [];
-};
-
+// Intercepts outbound frames to inject native Django CSRF tokens from browser cookie states
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     if (typeof document !== "undefined" && !config.headers['X-CSRFToken']) {
         const value = document.cookie
@@ -51,6 +45,7 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     return config;
 });
 
+// Asynchronous interceptor loop to catch 401 Session Drops and auto-refresh credentials
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -61,6 +56,7 @@ api.interceptors.response.use(
         }
 
         const urlPath = originalRequest.url || '';
+        // Skip fallback execution logic loops for core gateway auth routes
         if (urlPath.includes("accounts/token/refresh/") || urlPath.includes("accounts/login/")) {
             return Promise.reject(error);
         }
@@ -78,6 +74,7 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             try {
+                // Hits your custom CookieTokenRefreshView inside accounts/views.py over safe cross-origin cookies
                 await api.post("accounts/token/refresh/");
                 
                 const currentQueue = [...failedQueue];
@@ -95,6 +92,7 @@ api.interceptors.response.use(
                 
                 currentQueue.forEach(prom => prom.reject(refreshError));
                 
+                // Evict the client and route cleanly to login state routes if the session refresh falls flat
                 if (typeof window !== "undefined") {
                     const publicRoutes = ["/login", "/register", "/"];
                     if (!publicRoutes.includes(window.location.pathname)) {

@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, User, ShieldCheck, Activity, MapPin, Save } from "lucide-react";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -25,6 +24,7 @@ export default function ProfilePage() {
     medical_history: "",
   });
 
+  // Pulls structural user profile data arrays on component context mount
   useEffect(() => {
     if (!authLoading && !user) {
       toast.error("Session Unauthorized", { description: "Authenticate to access profile parameters." });
@@ -45,6 +45,7 @@ export default function ProfilePage() {
     }
   }, [user, authLoading, router]);
 
+  // Packages updated payload schemas for database profile patches
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -71,8 +72,8 @@ export default function ProfilePage() {
         };
 
     try {
-      // Directed strictly to your verified backend endpoint structure
-      const res = await api.put("/accounts/profile/update/", submissionPayload);
+      // Replaced absolute path string elements with relative parameters handled by the api interceptor proxy
+      const res = await api.put("accounts/profile/update/", submissionPayload);
       
       if (res.status === 200 || res.status === 201) {
         toast.success("Changes Saved", { description: "Your central profile records have successfully updated." });
@@ -91,8 +92,7 @@ export default function ProfilePage() {
 
   if (authLoading || !user) {
     return (
-      <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4">
-        <Loader2 className="animate-spin text-blue-600" size={36} />
+      <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4 font-sans">
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 animate-pulse">
           Synchronising Profile State Matrix...
         </p>
@@ -100,15 +100,12 @@ export default function ProfilePage() {
     );
   }
 
-  const identityString = user.email || "Active User";
-  const displayName = identityString.includes("@") ? identityString.split("@")[0] : identityString;
-
   return (
     <main className="max-w-4xl mx-auto p-6 lg:p-12 space-y-12 min-h-screen font-sans bg-white select-none animate-in fade-in-50 duration-200">
       <header className="border-b border-dashed border-zinc-100 pb-8 flex items-center justify-between">
         <div className="space-y-2">
-          <div className="flex items-center gap-2.5 text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] italic">
-            <User size={12} /> Account Management Perimeter
+          <div className="text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] italic">
+            Account Management Perimeter
           </div>
           <h1 className="text-3xl md:text-5xl font-black text-zinc-900 tracking-tighter uppercase italic leading-none">
             Profile Station
@@ -125,8 +122,8 @@ export default function ProfilePage() {
 
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="bg-zinc-50 border border-solid border-zinc-200 rounded-2xl p-6 space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-wider text-zinc-900 border-b border-solid border-zinc-200 pb-2 flex items-center gap-1.5">
-            <MapPin size={12} className="text-blue-600" /> Geospatial Location Tracking Parameters
+          <h3 className="text-xs font-black uppercase tracking-wider text-zinc-900 border-b border-solid border-zinc-200 pb-2">
+            Geospatial Location Tracking Parameters
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -148,8 +145,8 @@ export default function ProfilePage() {
 
         {isNurse ? (
           <div className="bg-zinc-50 border border-solid border-zinc-200 rounded-2xl p-6 space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-wider text-zinc-900 border-b border-solid border-zinc-200 pb-2 flex items-center gap-1.5">
-              <ShieldCheck size={12} className="text-blue-600" /> Professional Practice Metrics
+            <h3 className="text-xs font-black uppercase tracking-wider text-zinc-900 border-b border-solid border-zinc-200 pb-2">
+              Professional Practice Metrics
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -170,9 +167,9 @@ export default function ProfilePage() {
           </div>
         ) : (
           <div className="bg-zinc-50 border border-solid border-zinc-200 rounded-2xl p-6 space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-wider text-zinc-900 border-b border-solid border-zinc-200 pb-2 flex items-center gap-1.5">
-              <Activity size={12} className="text-blue-600" /> Patient Emergency Diagnostic Variables
-          </h3>
+            <h3 className="text-xs font-black uppercase tracking-wider text-zinc-900 border-b border-solid border-zinc-200 pb-2">
+              Patient Emergency Diagnostic Variables
+            </h3>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">Blood Group Category</Label>
@@ -182,17 +179,16 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">Declared Medical Allergies</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">Known Allergies</Label>
                 <Input 
                   type="text" disabled={isLoading} placeholder="e.g. Penicillin"
                   value={formData.allergies} onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">Chronic History Overview Summary</Label>
-                <textarea 
-                  disabled={isLoading} placeholder="Detail your active medications..."
-                  className="w-full min-h-[80px] p-4 bg-white border border-solid border-zinc-200 rounded-2xl text-sm font-medium text-zinc-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all font-sans"
+                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">Medical History Summary</Label>
+                <Input 
+                  type="text" disabled={isLoading} placeholder="e.g. Hypertension history"
                   value={formData.medical_history} onChange={(e) => setFormData({ ...formData, medical_history: e.target.value })}
                 />
               </div>
@@ -201,18 +197,10 @@ export default function ProfilePage() {
         )}
 
         <Button 
-          disabled={isLoading}
-          type="submit" 
-          className="w-full bg-zinc-950 hover:bg-blue-600 text-white h-16 rounded-2xl font-black text-xs uppercase tracking-widest border-none transition-all duration-200 shadow-xl active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+          disabled={isLoading} type="submit" 
+          className="w-full bg-zinc-950 hover:bg-blue-600 text-white h-16 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl border-none transition-all cursor-pointer"
         >
-          {isLoading ? (
-            <Loader2 className="animate-spin" size={14} />
-          ) : (
-            <>
-              <Save size={14} />
-              <span>Commit System Records Changes</span>
-            </>
-          )}
+          {localLoading ? "Saving Profile Parameters..." : "Commit Modification Entry"}
         </Button>
       </form>
     </main>

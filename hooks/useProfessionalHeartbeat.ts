@@ -2,21 +2,13 @@
 
 import { useEffect, useRef } from "react";
 
-interface HeartbeatHookProps {
-  isNurse: boolean;
-  isOnline: boolean;
-  isAvailable: boolean;
-  socketConnected: boolean;
-  sendWebSocketMessage: (data: object) => void;
-}
-
 export function useProfessionalHeartbeat({
   isNurse,
   isOnline,
   isAvailable,
   socketConnected,
   sendWebSocketMessage,
-}: HeartbeatHookProps) {
+}) {
   const stateRef = useRef({ isAvailable, socketConnected });
 
   useEffect(() => {
@@ -26,12 +18,12 @@ export function useProfessionalHeartbeat({
   useEffect(() => {
     if (typeof window === "undefined" || !isNurse || !isOnline) return;
     if (!("geolocation" in navigator)) {
-      console.error("Browser platform architecture lacks operational Geolocation layers.");
+      console.error("Browser geolocation modules missing.");
       return;
     }
 
     const transmitPulse = () => {
-      const geoOptions: PositionOptions = { 
+      const geoOptions = { 
         enableHighAccuracy: false, 
         timeout: 20000, 
         maximumAge: 60000 
@@ -47,26 +39,30 @@ export function useProfessionalHeartbeat({
             timestamp: new Date().toISOString()
           };
 
-          // Routes payload data over the active socket thread if connected, using HTTP only as fallback
           if (stateRef.current.socketConnected) {
             sendWebSocketMessage(payload);
           } else {
-            fetch("/api/accounts/profile/update/", {
-              method: "PATCH",
+            const apiDomain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:10000/api/";
+            const targetUrl = `${apiDomain.replace(/\/$/, "")}/accounts/profile/update/`;
+
+            // Deliver fallback payload across absolute cross-origin layouts using cookies
+            fetch(targetUrl, {
+              method: "PUT",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ...payload, heartbeat: true })
-            }).catch(() => console.warn("Background telemetry HTTP fallback transmission failed."));
+              body: JSON.stringify({ ...payload, heartbeat: true }),
+              credentials: "include"
+            }).catch(() => console.warn("HTTP telemetry backup push dropped."));
           }
         },
         (error) => {
-          console.warn(`Geospatial lock verification interrupted: ${error.message}`);
+          console.warn(`Telemetry lock tracking interrupted: ${error.message}`);
         },
         geoOptions
       );
     };
 
     transmitPulse();
-    const pulseInterval = setInterval(transmitPulse, 300000); // 5-minute telemetry sync balance
+    const pulseInterval = setInterval(transmitPulse, 300000);
 
     return () => clearInterval(pulseInterval);
   }, [isNurse, isOnline, sendWebSocketMessage]);

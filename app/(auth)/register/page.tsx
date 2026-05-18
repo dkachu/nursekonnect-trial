@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -25,6 +24,7 @@ export default function RegisterPage() {
     is_patient: false,
   });
 
+  // Structural route guard redirecting authenticated sessions to correct nodes
   useEffect(() => {
     if (authLoading || redirectingRef.current) return;
 
@@ -43,12 +43,13 @@ export default function RegisterPage() {
     }
   }, [user, authLoading, isNurse, router]);
 
+  // Transmits payload records back to AuthContext validation routines
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.is_nurse && !formData.is_patient) {
       toast.error("Role Selection Required", { 
-        description: "Please specify whether you are registering as a Practitioner or Recipient." 
+        description: "Please specify whether you are registering as a Professional or Recipient." 
       });
       return;
     }
@@ -85,8 +86,8 @@ export default function RegisterPage() {
 
   if (authLoading && !user) {
     return (
-      <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4">
-        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+      <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4 font-sans">
+        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 animate-pulse">
           Synchronising Security Session...
         </p>
       </div>
@@ -94,10 +95,10 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="bg-white min-h-[95vh] flex items-center justify-center px-4 py-8 md:py-16 relative overflow-hidden font-sans select-none">
+    <div className="bg-white min-h-[95vh] flex items-center justify-center px-4 py-8 md:py-16 relative overflow-hidden font-sans select-none animate-in fade-in-50 duration-300">
       <div className="max-w-md w-full space-y-8 relative z-10 p-2">
         <div className="text-center space-y-3">
-          <div className="text-blue-600 font-black text-[10px] uppercase tracking-widest italic">
+          <div className="text-blue-600 font-black text-[10px] uppercase tracking-widest shifted-tracking-wide italic">
             Enrolment Portal Gateway
           </div>
           <h1 className="text-4xl font-black text-zinc-900 uppercase tracking-tighter italic leading-none">
@@ -197,19 +198,19 @@ export default function RegisterPage() {
             className="w-full bg-blue-600 hover:bg-zinc-950 h-16 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all active:scale-[0.99] flex items-center justify-center text-white border-none cursor-pointer disabled:cursor-not-allowed"
           >
             {isLoading ? (
-              <Loader2 className="animate-spin" size={14} />
+              <span>ENROLLING ACCOUNT RECORD...</span>
             ) : (
-              <span>CREATE ACCOUNT TERMINAL</span>
+              <span>CREATE ACCOUNT IDENTITY</span>
             )}
           </Button>
         </form>
 
-        <div className="pt-6 border-t border-dashed border-zinc-100 text-center">
+        <div className="pt-6 border-t border-dashed border-zinc-100 text-center space-y-4">
           <Link 
             href="/login" 
             className="text-zinc-500 font-black text-xs uppercase tracking-widest hover:text-blue-600 transition-colors block no-underline hover:underline"
           >
-            ← RETURN TO PASS TERMINAL
+            ← RETURN TO LOGIN TERMINAL
           </Link>
         </div>
       </div>

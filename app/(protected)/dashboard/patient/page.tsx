@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
-import { Loader2, Activity, ShieldAlert, MapPin, Users, Send } from "lucide-react";
 import { NurseProfile } from "@/types/nurse";
 import NurseCard from "@/components/dashboard/NurseCard";
 import { useRegistrySync } from "@/hooks/useRegistrySync";
@@ -31,19 +30,22 @@ export default function PatientDashboardPage() {
   const [error, setError] = useState("");
   const [allocationRequestingId, setAllocationRequestingId] = useState<number | null>(null);
 
-  // Fallback function passed to useRegistrySync to capture and re-verify nearby records on changes
+  // Polls nearby clinicians dynamically when network notification sockets fire
   const handleIncomingTelemetryUpdate = useCallback(() => {
     if (typeof window !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((pos) => {
         setNursesLoading(true);
-        api.get(`/api/accounts/nurses/nearby/`, {
+        api.get(`accounts/nurses/nearby/`, {
           params: { lat: pos.coords.latitude, lng: pos.coords.longitude, radius: 5000 }
-        }).then(res => setNurses(res.data)).catch(console.error).finally(() => setNursesLoading(false));
+        })
+        .then(res => setNurses(res.data || []))
+        .catch(console.error)
+        .finally(() => setNursesLoading(false));
       });
     }
   }, []);
 
-  // Initialize the live asynchronous global updates socket link channel hook natively
+  // Connect backend message broker triggers cleanly to matching UI tracking parameters
   const { sendWebSocketMessage } = useRegistrySync({
     onNewDispatch: handleIncomingTelemetryUpdate
   });
@@ -51,10 +53,10 @@ export default function PatientDashboardPage() {
   const fetchNearbyNurses = useCallback(async (latitude: number, longitude: number) => {
     setNursesLoading(true);
     try {
-      const res = await api.get(`/api/accounts/nurses/nearby/`, {
+      const res = await api.get(`accounts/nurses/nearby/`, {
         params: { lat: latitude, lng: longitude, radius: 5000 }
       });
-      setNurses(res.data);
+      setNurses(res.data || []);
     } catch (err) {
       console.error("Geospatial fetch failure:", err);
       toast.error("Registry Sync Failure", { description: "Could not retrieve clinical nodes in this sector." });
@@ -64,7 +66,7 @@ export default function PatientDashboardPage() {
   }, []);
 
   useEffect(() => {
-    api.get("/api/accounts/profile/me/")
+    api.get("accounts/profile/me/")
       .then((res) => {
         setData(res.data);
         setLoading(false);
@@ -76,7 +78,7 @@ export default function PatientDashboardPage() {
             },
             (geoErr) => {
               console.warn("GPS tracking access missing, using fallback:", geoErr.message);
-              fetchNearbyNurses(-0.6972, 36.9328); // Fallback to Kigumo
+              fetchNearbyNurses(-0.6972, 36.9328); 
             },
             { enableHighAccuracy: true, timeout: 10000 }
           );
@@ -88,7 +90,7 @@ export default function PatientDashboardPage() {
       });
   }, [fetchNearbyNurses]);
 
-  // FIXED: Fully wired transactional handler links action buttons to backend mutations and socket broadcasts
+  // Handle manual allocation dispatches back to backend database tables
   const handleDispatchAllocation = async (nurse: NurseProfile) => {
     setAllocationRequestingId(nurse.id);
     const clinicianName = nurse.user_details.email.split("@")[0];
@@ -96,19 +98,18 @@ export default function PatientDashboardPage() {
     const allocationPayload = {
       nurse: nurse.id,
       service_description: `Emergency medical home care request dispatch allocated to practitioner node reference ${nurse.license_number}.`,
-      scheduled_date: new Date().toISOString().split("T")[0] // Maps standard format YYYY-MM-DD
+      scheduled_date: new Date().toISOString().split("T")[0]
     };
 
     try {
-      // 1. Dispatch structural database entry creation pass
-      const res = await api.post("/api/bookings/", allocationPayload);
+      const res = await api.post("bookings/", allocationPayload);
 
       if (res.status === 201 || res.status === 200) {
         toast.success("CARE DISPATCH ALLOCATED", {
           description: `Direct allocation link established securely with practitioner: ${clinicianName}`
         });
 
-        // 2. Programmatically broadcast immediate socket alarm packet to trigger audio-visual prompts on clinician's terminal
+        // Push nested envelope directly down the websocket wire to spark sound and banner cues on nurse screen
         sendWebSocketMessage({
           type: "PERSONAL_ALERT",
           payload: {
@@ -130,8 +131,7 @@ export default function PatientDashboardPage() {
 
   if (loading || !data) {
     return (
-      <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4">
-        <Loader2 className="animate-spin text-blue-600" size={36} />
+      <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4 font-sans">
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 animate-pulse">
           Retrieving Personal Diagnostics Pipeline...
         </p>
@@ -142,7 +142,6 @@ export default function PatientDashboardPage() {
   if (error) {
     return (
       <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-2 font-sans p-6">
-        <ShieldAlert className="text-red-500" size={32} />
         <p className="text-sm font-bold text-red-600 uppercase tracking-wider">Error: {error}</p>
       </div>
     );
@@ -155,8 +154,8 @@ export default function PatientDashboardPage() {
     <main className="max-w-7xl mx-auto p-6 lg:p-12 space-y-16 min-h-screen font-sans bg-white select-none">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 border-b border-dashed border-zinc-100 pb-12">
         <div className="space-y-3">
-          <div className="flex items-center gap-2.5 text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] italic">
-            <Activity size={12} className="animate-pulse" /> Patient Care Station
+          <div className="text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] italic">
+            Patient Care Station
           </div>
           <h1 className="text-4xl md:text-6xl font-black text-zinc-900 tracking-tighter uppercase italic leading-none">
             Welcome, <span className="text-blue-600 not-italic">{displayName}</span>
@@ -167,9 +166,7 @@ export default function PatientDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-8">
           <section className="bg-zinc-50 border border-solid border-zinc-200 p-6 rounded-2xl space-y-4">
-            <div className="flex items-center gap-2 text-zinc-900 font-black text-xs uppercase tracking-wider">
-              <ShieldAlert size={14} className="text-blue-600" /> Identity Overview
-            </div>
+            <h4 className="text-zinc-900 font-black text-xs uppercase tracking-wider">Identity Overview</h4>
             <div className="space-y-2 text-sm text-zinc-600">
               <p><strong>Account Ref:</strong> <span className="text-zinc-900 font-mono">{data.user_details.id}</span></p>
               <p><strong>Primary Node:</strong> <span className="text-zinc-900">{data.user_details.phone_number}</span></p>
@@ -178,39 +175,28 @@ export default function PatientDashboardPage() {
           </section>
 
           <section className="bg-white border border-solid border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
-            <div className="flex items-center gap-2 text-zinc-900 font-black text-xs uppercase tracking-wider">
-              <Activity size={14} className="text-blue-600" /> Critical Medical Profile
-            </div>
+            <h4 className="text-zinc-900 font-black text-xs uppercase tracking-wider">Critical Medical Profile</h4>
             <div className="space-y-2 text-sm text-zinc-600">
               <p><strong>Blood Group:</strong> <span className="text-zinc-900 font-bold">{data.profile.blood_group || "Not Indexed"}</span></p>
-              <p><strong>Allergies:</strong> <span className="text-zinc-900">{data.profile.allergies || "None Declared"}</span></p>
-              <p><strong>History:</strong> <span className="text-zinc-900 line-clamp-3">{data.profile.medical_history || "No Chronic Incidents Recorded"}</span></p>
-              <div className="pt-2 border-t border-solid border-zinc-100 flex items-start gap-1.5 text-zinc-500">
-                <MapPin size={14} className="mt-0.5 shrink-0 text-zinc-400" />
-                <p className="text-xs font-medium"><strong>Home:</strong> {data.profile.building ? `${data.profile.building}, ` : ""}{data.profile.town || "No Address Saved"}</p>
-              </div>
+              <p><strong>Allergies:</strong> <span className="text-zinc-900">{data.profile.allergies || "None Registered"}</span></p>
+              <p><strong>Medical History:</strong> <span className="text-zinc-900 line-clamp-3">{data.profile.medical_history || "Clear"}</span></p>
+              <p><strong>Home Sector:</strong> <span className="text-zinc-900">{data.profile.building}, {data.profile.town}</span></p>
             </div>
           </section>
         </div>
 
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between border-b border-solid border-zinc-100 pb-4">
-            <div className="flex items-center gap-2 text-zinc-900 font-black text-xs uppercase tracking-wider">
-              <Users size={14} className="text-blue-600" /> Verified Practitioners Within 5KM
-            </div>
-            {nursesLoading && <Loader2 className="animate-spin text-zinc-400" size={14} />}
+          <div className="flex items-center justify-between border-b border-solid border-zinc-100 pb-3">
+            <h3 className="text-xs font-black uppercase tracking-wider text-zinc-900">
+              Clinical Nodes Responding In Your Sector
+            </h3>
+            {nursesLoading && <span className="text-[10px] font-bold text-zinc-400 animate-pulse uppercase">Scanning PostGIS...</span>}
           </div>
 
-          {nursesLoading ? (
-            <div className="py-24 text-center space-y-3">
-              <Loader2 className="animate-spin mx-auto text-blue-600" size={24} />
-              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Scanning geographical sector channels...</p>
-            </div>
-          ) : nurses.length === 0 ? (
-            <div className="py-24 border border-dashed border-zinc-200 bg-zinc-50 rounded-2xl text-center p-8 space-y-2">
-              <MapPin className="mx-auto text-zinc-300" size={28} />
-              <p className="text-sm font-bold text-zinc-700">No Practitioners Available</p>
-              <p className="text-xs text-zinc-400 max-w-sm mx-auto">There are currently no active nurse practitioner dispatches registered within a 5 kilometer radius of your matching sector position coordinates grid loop.</p>
+          {nurses.length === 0 ? (
+            <div className="py-20 border border-dashed border-zinc-200 rounded-2xl text-center bg-zinc-50/50">
+              <p className="text-sm font-bold text-zinc-500 uppercase tracking-wide">No Medical Responders Available</p>
+              <p className="text-xs text-zinc-400 uppercase tracking-wider mt-1">Expanding query parameters outside 5km perimeter coordinates filter...</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -218,7 +204,7 @@ export default function PatientDashboardPage() {
                 <NurseCard 
                   key={nurse.id} 
                   nurse={nurse} 
-                  onSelect={allocationRequestingId === nurse.id ? undefined : handleDispatchAllocation} 
+                  onSelect={allocationRequestingId === null ? handleDispatchAllocation : undefined}
                 />
               ))}
             </div>
