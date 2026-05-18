@@ -39,10 +39,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Cryptographic Structural Token Sanity Scan
+  // 2. Cryptographic Structural Token & Expiration Sanity Scan
   const payload = decodeJwt(token);
-  if (!payload) {
-    const response = NextResponse.redirect(new URL("/login?session=corrupted", request.url));
+  // FIX: Catch expired tokens on the edge before they hit your Django endpoints
+  const currentTime = Math.floor(Date.now() / 1000);
+  if (!payload || (payload.exp && payload.exp < currentTime)) {
+    const response = NextResponse.redirect(new URL("/login?session=expired", request.url));
     response.cookies.delete("access_token");
     response.cookies.delete("refresh_token");
     return response;
@@ -59,17 +61,24 @@ export function middleware(request: NextRequest) {
 
   // 4. Fallback Router (Resolves the root /dashboard layout down to role-based sub-paths)
   if (pathname === "/dashboard") {
+    // FIX: Handled safe fallback routing to prevent loops if both roles evaluate to false
+    if (!isNurse && !isPatient) {
+      return NextResponse.redirect(new URL("/login?session=unauthorized", request.url));
+    }
     const targetDashboard = isNurse ? "/dashboard/nurse" : "/dashboard/patient";
     return NextResponse.redirect(new URL(targetDashboard, request.url));
   }
 
   // 5. Strict Role Boundaries & Cross-Access Isolation Rules
+  // FIX: Handled routing protection targets gracefully without creating inter-role ping-pong redirect loops
   if (NURSE_ONLY.some((route) => pathname.startsWith(route)) && !isNurse) {
-    return NextResponse.redirect(new URL("/dashboard/patient", request.url));
+    const fallback = isPatient ? "/dashboard/patient" : "/login?session=unauthorized";
+    return NextResponse.redirect(new URL(fallback, request.url));
   }
 
   if (PATIENT_ONLY.some((route) => pathname.startsWith(route)) && !isPatient) {
-    return NextResponse.redirect(new URL("/dashboard/nurse", request.url));
+    const fallback = isNurse ? "/dashboard/nurse" : "/login?session=unauthorized";
+    return NextResponse.redirect(new URL(fallback, request.url));
   }
 
   return NextResponse.next();
