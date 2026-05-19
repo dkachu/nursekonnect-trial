@@ -56,7 +56,7 @@ export default function RegisterPage() {
     setLocalLoading(true);
 
     try {
-      await register(
+      const response = await register(
         formData.email.trim(), 
         formData.password, 
         formData.phone_number.trim(), 
@@ -64,11 +64,19 @@ export default function RegisterPage() {
         formData.is_patient
       );
       
-      toast.success("REGISTRATION COMPLETED", { 
-        description: "Your credential profiles have been verified. Launching environment node..." 
-      });
+      if (response && response.success) {
+        toast.success("REGISTRATION COMPLETED", { 
+          description: "Your credential profiles have been verified. Launching environment node..." 
+        });
+
+        // Safe execution timeout allowing context state variables to finalize before executing redirect
+        setTimeout(() => {
+          router.replace("/setup");
+        }, 100);
+      } else {
+        toast.error("Registration Issue", { description: response.error || "Handshake dropped." });
+      }
     } catch (err: any) {
-      // Intercept explicit dictionary validation errors emitted by your backend serializer
       const errorMap = err.response?.data || {};
       const feedbackDetail = errorMap.email?.[0] || errorMap.phone_number?.[0] || errorMap.detail || "The registration parameters provided violate validation filters.";
       toast.error("Registration Issue", { description: feedbackDetail });

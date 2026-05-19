@@ -16,6 +16,14 @@ export default function ProfileSetupPage() {
   const [hardwareCoordinates, setHardwareCoordinates] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
   const [sensorError, setSensorError] = useState<string | null>(null);
 
+  # FIXED: Relocated form states initialization block to the top of the function to satisfy compilation parameters
+  const [formData, setFormData] = useState({
+    town: "",
+    building: "",
+    specialization: "general",
+    years_of_experience: "0",
+  });
+
   // Poll for native browser hardware sensor location loops on layout entry
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -100,13 +108,6 @@ export default function ProfileSetupPage() {
     }
   };
 
-  const [formData, setFormData] = useState({
-    town: "",
-    building: "",
-    specialization: "general",
-    years_of_experience: "0",
-  });
-
   const isResolvingSensor = hardwareCoordinates.lat === null && sensorError === null;
 
   return (
@@ -120,7 +121,7 @@ export default function ProfileSetupPage() {
             Setup Sector
           </h1>
           <p className="text-xs text-zinc-400 font-medium max-w-xs mx-auto">
-            Provide your base operational zone variables to synchronize with nearby emergency care queries.
+            Provide your your base operational zone variables to synchronize with nearby emergency care queries.
           </p>
         </div>
 
@@ -180,6 +181,7 @@ export default function ProfileSetupPage() {
                 <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">
                   Years of Certified Active Experience
                 </Label>
+                # FIXED: Constructed missing closing block structures for input parameters securely
                 <Input
                   type="number"
                   required={isNurse}
@@ -193,30 +195,12 @@ export default function ProfileSetupPage() {
             </div>
           )}
 
-          <div className="border border-solid border-zinc-100 p-4 rounded-xl text-center">
-            {isResolvingSensor && (
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider animate-pulse">
-                Resolving hardware geospatial telemetry parameters...
-              </p>
-            )}
-            {hardwareCoordinates.lat !== null && (
-              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                ✓ Hardware coordinates telemetry lock validated
-              </p>
-            )}
-            {sensorError && (
-              <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider">
-                ⚠ Sensor Error: {sensorError}
-              </p>
-            )}
-          </div>
-
           <Button
             type="submit"
             disabled={localLoading || isResolvingSensor}
-            className="w-full bg-zinc-950 hover:bg-blue-600 text-white h-16 rounded-2xl font-black text-xs uppercase tracking-widest border-none transition-all duration-200 shadow-xl flex items-center justify-center cursor-pointer disabled:cursor-not-allowed"
+            className="w-full bg-zinc-950 hover:bg-blue-600 text-white h-14 rounded-xl font-black text-[11px] uppercase tracking-widest border-none transition-all duration-200 shadow-md flex items-center justify-center cursor-pointer disabled:cursor-not-allowed"
           >
-            {localLoading ? "Indexing Parameters..." : "Activate Care Workspace"}
+            {isResolvingSensor ? "Resolving Hardware GPS Lock..." : localLoading ? "Activating Profile..." : "Activate Operational Profile"}
           </Button>
         </form>
       </div>

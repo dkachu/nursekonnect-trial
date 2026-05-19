@@ -31,7 +31,7 @@ function LoginContent() {
     }
   }, [sessionExpired]);
 
-  // Handle active user redirects to the proper member boards
+  // Handle active user redirects to the proper member boards automatically on tab mount
   useEffect(() => {
     if (authLoading || redirectingRef.current) return;
 
@@ -67,14 +67,26 @@ function LoginContent() {
     setLocalLoading(true);
     
     try {
-      // ✅ Enforce explicit parameter delivery to ensure Axios calculates Content-Length accurately
-      await login(cleanEmail, password);
+      // Execute the context login request
+      const response = await login(cleanEmail, password);
       
-      toast.success("AUTHORIZATION GRANTED", {
-        description: "Identity verified successfully. Routing to your secure workspace node..."
-      });
+      if (response && response.success) {
+        toast.success("AUTHORIZATION GRANTED", {
+          description: "Identity verified successfully. Routing to your secure workspace node..."
+        });
+
+        // Safe fallback: short execution timeout allowing context state variables to finalize
+        setTimeout(() => {
+          if (redirectParam) {
+            router.replace(decodeURIComponent(redirectParam));
+            return;
+          }
+          // The browser observer hook will now accurately catch the synchronized state and execute routing
+        }, 100);
+      } else {
+        toast.error("Sign In Issue", { description: response.error || "We could not verify your details." });
+      }
     } catch (err: any) {
-      // Catch backend validation error payloads directly from the server response
       const serverMessage = err.response?.data?.detail || "We could not verify your details. Please check your spelling and try again.";
       toast.error("Sign In Issue", { description: serverMessage });
     } finally {
