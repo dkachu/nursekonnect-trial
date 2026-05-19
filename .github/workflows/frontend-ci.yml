@@ -17,7 +17,6 @@ jobs:
       - name: 2. Initialize Node.js High-Performance Environment
         uses: actions/setup-node@v4
         with:
-          node-env: production
           node-version: 20
           cache: 'npm'
 
@@ -25,4 +24,11 @@ jobs:
         run: npm ci
 
       - name: 4. Execute Webpack Multi-Stage Production Bundle Compilation
-        run: npx next build
+        # Fixed: Environment keys match your live production Render instances precisely
+        env:
+          NEXT_PUBLIC_API_URL: https://nursekonnect-back.onrender.com
+          NEXT_PUBLIC_AUTH_COOKIE: access_token
+          NEXT_PUBLIC_APP_NAME: NurseKonnekt
+          NEXT_PUBLIC_DEFAULT_CURRENCY: KES
+          NODE_ENV: production
+        run: npm run build

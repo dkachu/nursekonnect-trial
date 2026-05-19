@@ -1,11 +1,18 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
-export const useBookingSocket = (onMessageReceived) => {
+interface BookingSocketProps {
+  onMessageReceived: (data: any) => void;
+}
+
+export const useBookingSocket = (onMessageReceived: BookingSocketProps['onMessageReceived']) => {
+  // Extract global authentication context parameters to safeguard connection bounds
+  const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
-  const socketRef = useRef(null);
-  const reconnectTimeoutRef = useRef(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
 
@@ -14,24 +21,30 @@ export const useBookingSocket = (onMessageReceived) => {
   const connectSocket = useCallback(() => {
     if (typeof window === 'undefined') return;
 
+    // Guard: Abort socket connection upgrades immediately if the user context is unauthenticated
+    if (!user || !user.id) {
+      setIsConnected(false);
+      if (socketRef.current) {
+        socketRef.current.close(1000, "Session terminated");
+        socketRef.current = null;
+      }
+      return;
+    }
+
     if (socketRef.current && (socketRef.current.readyState === WebSocket.CONNECTING || socketRef.current.readyState === WebSocket.OPEN)) {
       return;
     }
 
-    // Explicitly parse base domain paths cleanly without route configuration pollution
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:10000";
     const baseHost = apiUrl
       .replace(/^https?:\/\//, "")
       .replace(/\/api\/?$/, "")
       .replace(/\/$/, "");
 
-    // Establish WebSocket protocols based on browser infrastructure security
     const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-    
-    // Direct traffic to match your Django ASGI routing structure explicitly
     const wsUrl = `${wsScheme}://${baseHost}/ws/bookings/`;
     
-    console.log(`[Booking Socket] Opening stream to: ${wsUrl}`);
+    console.log(`[Booking Socket] Syncing User #${user.id} stream to: ${wsUrl}`);
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
 
@@ -50,12 +63,17 @@ export const useBookingSocket = (onMessageReceived) => {
     };
 
     ws.onerror = (error) => {
-      console.error("[Booking Socket] Channel error caught:", error);
+      if (user?.id) {
+        console.error("[Booking Socket] Channel error caught:", error);
+      }
     };
 
     ws.onclose = (event) => {
       setIsConnected(false);
-      if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+      socketRef.current = null;
+
+      // Only attempt reconnect logic if user remains logged in and the closure was unhandled
+      if (user?.id && reconnectAttemptsRef.current < maxReconnectAttempts) {
         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 10000);
         reconnectTimeoutRef.current = setTimeout(() => {
           reconnectAttemptsRef.current += 1;
@@ -63,11 +81,13 @@ export const useBookingSocket = (onMessageReceived) => {
         }, delay);
       }
     };
-  }, [stableOnMessage]);
+  }, [stableOnMessage, user]);
 
-  const sendMessage = useCallback((payload) => {
+  const sendMessage = useCallback((payload: object) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify(payload));
+    } else {
+      console.error("Cannot dispatch transmission payload: Socket tunnel is currently offline.");
     }
   }, []);
 
@@ -80,7 +100,8 @@ export const useBookingSocket = (onMessageReceived) => {
         socketRef.current.onmessage = null;
         socketRef.current.onerror = null;
         socketRef.current.onclose = null;
-        socketRef.current.close();
+        socketRef.current.close(1000, "Component context unmounted cleanly.");
+        socketRef.current = null;
       }
     };
   }, [connectSocket]);

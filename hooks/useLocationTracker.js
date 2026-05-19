@@ -1,17 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
-export const useLocationTracker = (patientId, isActive = false) => {
+export const useLocationTracker = (patientId: number | string | null, isActive = false) => {
+  // Extract global authentication context parameters to safeguard connection bounds
+  const { user } = useAuth();
   const [coordinates, setCoordinates] = useState({ lat: null, lng: null });
   const [isStreaming, setIsStreaming] = useState(false);
   
-  const socketRef = useRef(null);
-  const geoWatcherRef = useRef(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const geoWatcherRef = useRef<number | null>(null);
 
   // Parse websocket route configuration using unified api variables
   const connectRegistrySocket = useCallback(() => {
-    if (typeof window === 'undefined' || !patientId || !isActive) return;
+    if (typeof window === 'undefined' || !patientId || !isActive || !user || !user.id) return;
 
     if (socketRef.current && (socketRef.current.readyState === WebSocket.CONNECTING || socketRef.current.readyState === WebSocket.OPEN)) {
       return;
@@ -24,11 +27,9 @@ export const useLocationTracker = (patientId, isActive = false) => {
       .replace(/\/$/, "");
 
     const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-    
-    // Direct traffic to match your Django ASGI routing structure without extra route pollution
     const wsUrl = `${wsScheme}://${baseHost}/ws/accounts/registry/`;
 
-    console.log(`[Socket] Connecting to spatial registry: ${wsUrl}`);
+    console.log(`[Socket] Syncing User #${user.id} location with registry: ${wsUrl}`);
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
 
@@ -45,11 +46,11 @@ export const useLocationTracker = (patientId, isActive = false) => {
     ws.onerror = (err) => {
       console.error('[Socket] Thread error encountered:', err);
     };
-  }, [patientId, isActive]);
+  }, [patientId, isActive, user]);
 
   // Track high-accuracy hardware sensor readings streams
   const startLocationWatcher = useCallback(() => {
-    if (typeof window === 'undefined' || !('geolocation' in navigator) || !isActive) return;
+    if (typeof window === 'undefined' || !('geolocation' in navigator) || !isActive || !user || !user.id) return;
 
     const geoOptions = {
       enableHighAccuracy: true,
@@ -66,7 +67,6 @@ export const useLocationTracker = (patientId, isActive = false) => {
 
         setCoordinates(currentCoords);
 
-        // Emit formatted packet structure to matching backend registry consumers
         if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
           socketRef.current.send(
             JSON.stringify({
@@ -82,15 +82,21 @@ export const useLocationTracker = (patientId, isActive = false) => {
       },
       geoOptions
     );
-  }, [patientId, isActive]);
+  }, [patientId, isActive, user]);
 
   useEffect(() => {
-    if (isActive && patientId) {
+    // Secure Guard: Block socket instantiation and sensor pooling if user context is empty
+    if (isActive && patientId && user && user.id) {
       connectRegistrySocket();
       startLocationWatcher();
+    } else {
+      setIsStreaming(false);
+      if (socketRef.current) {
+        socketRef.current.close();
+        socketRef.current = None;
+      }
     }
 
-    // Teardown connections and sensors to block component memory leaks
     return () => {
       if (geoWatcherRef.current !== null && typeof window !== 'undefined') {
         navigator.geolocation.clearWatch(geoWatcherRef.current);
@@ -105,7 +111,7 @@ export const useLocationTracker = (patientId, isActive = false) => {
       }
       setIsStreaming(false);
     };
-  }, [isActive, patientId, connectRegistrySocket, startLocationWatcher]);
+  }, [isActive, patientId, user, connectRegistrySocket, startLocationWatcher]);
 
   return { coordinates, isStreaming };
 };

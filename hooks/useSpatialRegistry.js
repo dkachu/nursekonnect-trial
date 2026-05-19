@@ -1,17 +1,27 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
 export const useSpatialRegistry = () => {
+  const { user } = useAuth();
   const [isLive, setIsLive] = useState(false);
   const [telemetryStream, setTelemetryStream] = useState([]);
   const socketRef = useRef(null);
 
   useEffect(() => {
-    // SSR Protection Guard: Terminates execution if compiled on server layers
     if (typeof window === 'undefined') return;
 
-    // Normalize protocol and base host matching your shared API configuration
+    // Secure Guard: Abort socket connection upgrades immediately if the user context is unauthenticated
+    if (!user || !user.id) {
+      setIsLive(false);
+      if (socketRef.current) {
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+      return;
+    }
+
     const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:10000';
     
@@ -20,10 +30,9 @@ export const useSpatialRegistry = () => {
       .replace(/\/api\/?$/, "")
       .replace(/\/$/, "");
 
-    // Align path exactly with your Django channels routing paths without extra route pollution
     const socketUrl = `${wsScheme}://${baseHost}/ws/accounts/registry/`;
 
-    console.log(`[Socket] Syncing with spatial hub: ${socketUrl}`);
+    console.log(`[Socket] Syncing User #${user.id} with spatial hub: ${socketUrl}`);
     const socket = new WebSocket(socketUrl);
     socketRef.current = socket;
 
@@ -31,7 +40,6 @@ export const useSpatialRegistry = () => {
       setIsLive(true);
       console.log('[Socket] Spatial registry tunnel accepted.');
       
-      // Request client coordinates from native browser sensor blocks once open
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
@@ -71,13 +79,13 @@ export const useSpatialRegistry = () => {
       console.error('[Socket] Wire boundary tracking exception:', err);
     };
 
-    // Structural cleanup mapping to prevent active connection leaks
     return () => {
       if (socketRef.current) {
         socketRef.current.close(1000, 'Component unmounted.');
+        socketRef.current = null;
       }
     };
-  }, []);
+  }, [user]);
 
   return { isLive, telemetryStream };
 };

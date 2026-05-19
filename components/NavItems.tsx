@@ -17,7 +17,7 @@ interface UserPayload {
 interface Props {
   mobile?: boolean;
   loggedinuser: UserPayload | null;
-  currentPath?: string; // FIXED: Explicitly declared to handle parameter inputs from Navbar safely
+  currentPath?: string; 
   onActionComplete?: () => void; 
 }
 
@@ -48,6 +48,16 @@ export default function NavItems({ mobile, loggedinuser, onActionComplete }: Pro
             {loggedinuser.is_nurse && (
               <>
                 <Link 
+                  href="/dashboard/nurse" 
+                  onClick={() => onActionComplete?.()}
+                  className={cn(
+                    linkStyle, 
+                    isActive("/dashboard/nurse") ? "text-blue-600 bg-blue-50/50" : "text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50"
+                  )}
+                >
+                  DEPLOYMENT HUB
+                </Link>
+                <Link 
                   href="/profile" 
                   onClick={() => onActionComplete?.()}
                   className={cn(
@@ -55,7 +65,7 @@ export default function NavItems({ mobile, loggedinuser, onActionComplete }: Pro
                     isActive("/profile") ? "text-blue-600 bg-blue-50/50" : "text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50"
                   )}
                 >
-                  DEPLOYMENT HUB
+                  PROFESSIONAL LEDGER
                 </Link>
                 <Link 
                   href="/setup" 
@@ -73,24 +83,24 @@ export default function NavItems({ mobile, loggedinuser, onActionComplete }: Pro
             {loggedinuser.is_patient && (
               <>
                 <Link 
-                  href="/dashboard" 
+                  href="/dashboard/patient" 
                   onClick={() => onActionComplete?.()}
                   className={cn(
                     linkStyle, 
-                    isActive("/dashboard") ? "text-blue-600 bg-blue-50/50" : "text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50"
-                  )}
-                >
-                  CARE REGISTRY
-                </Link>
-                <Link 
-                  href="/nurses/nearby" 
-                  onClick={() => onActionComplete?.()}
-                  className={cn(
-                    linkStyle, 
-                    isActive("/nurses/nearby") ? "text-blue-600 bg-blue-50/50" : "text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50"
+                    isActive("/dashboard/patient") ? "text-blue-600 bg-blue-50/50" : "text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50"
                   )}
                 >
                   SERVICE DISCOVERY
+                </Link>
+                <Link 
+                  href="/profile" 
+                  onClick={() => onActionComplete?.()}
+                  className={cn(
+                    linkStyle, 
+                    isActive("/profile") ? "text-blue-600 bg-blue-50/50" : "text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50"
+                  )}
+                >
+                  MEDICAL PROFILE
                 </Link>
               </>
             )}
@@ -106,7 +116,7 @@ export default function NavItems({ mobile, loggedinuser, onActionComplete }: Pro
                 {loggedinuser.email ? loggedinuser.email.split('@')[0] : "AUTHORIZED"}
               </span>
               <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mt-1">
-                {loggedinuser.is_nurse ? "PROFESSIONAL LEDGER" : "RECIPIENT MATRIX"}
+                {loggedinuser.is_nurse ? "PROFESSIONAL UNIT" : "RECIPIENT MATRIX"}
               </span>
             </div>
 
