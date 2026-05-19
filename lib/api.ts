@@ -1,4 +1,3 @@
-// lib/api.ts
 import axios, { InternalAxiosRequestConfig } from 'axios';
 
 interface FailedRequest {
@@ -17,6 +16,7 @@ const getBaseUrl = (): string => {
         return cleanUrl.includes('/api/') ? cleanUrl : `${cleanUrl}api/`;
     }
     
+    // Fallback if environment variables fail to load
     return isProd
         ? 'https://onrender.com'
         : 'http://localhost:10000/api/';
