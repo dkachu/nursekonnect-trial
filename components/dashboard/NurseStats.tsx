@@ -21,16 +21,19 @@ export default function NurseStats() {
     try {
       const res = await api.get("accounts/profile/me/");
       const profile = res.data?.profile || {};
-      const user = res.data?.user_details || {};
       
       const isOnline = !!profile.is_online;
       const isAvailable = !!profile.is_available;
 
+      // Extract structural backend statistics safely with zero aggregation errors
+      const activeCount = profile.active_bookings_count ?? profile.bookings_count ?? 0;
+      const engagementScore = profile.response_rating ?? profile.engagement_score ?? 100;
+
       setMetrics({
         validation_rank: profile.is_verified ? "NCK Certified" : "Pending Audit",
         broadcast_status: isOnline && isAvailable ? "On-Call" : "Off-Duty",
-        assigned_shifts: `${profile.active_bookings_count || 0} Active`,
-        node_engagement: `${profile.response_rating || 100}%`,
+        assigned_shifts: `${activeCount} Active`,
+        node_engagement: `${engagementScore}%`,
         is_online: isOnline,
         is_available: isAvailable,
       });
@@ -58,9 +61,9 @@ export default function NurseStats() {
   const telemetryMetrics = [
     { 
       title: "Validation Rank", 
-      value: metrics?.validation_rank || "NCK Certified", 
+      value: metrics?.validation_rank || "Pending Audit", 
       subtitle: metrics?.validation_rank === "NCK Certified" ? "Active License" : "Verification Pending", 
-      bg: "bg-blue-500" 
+      bg: metrics?.validation_rank === "NCK Certified" ? "bg-blue-500" : "bg-amber-500" 
     },
     { 
       title: "Broadcast Status", 
@@ -71,8 +74,8 @@ export default function NurseStats() {
     { 
       title: "Assigned Shifts", 
       value: metrics?.assigned_shifts || "0 Active", 
-      subtitle: metrics?.assigned_shifts === "0 Active" ? "Perimeter Clear" : "Dispatch Pipeline Active", 
-      bg: "bg-zinc-500" 
+      subtitle: metrics?.assigned_shifts?.startsWith("0") ? "Perimeter Clear" : "Dispatch Pipeline Active", 
+      bg: metrics?.assigned_shifts?.startsWith("0") ? "bg-zinc-400" : "bg-blue-600" 
     },
     { 
       title: "Node Engagement", 
