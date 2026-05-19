@@ -188,23 +188,23 @@ export default function PatientDashboardPage() {
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between border-b border-solid border-zinc-100 pb-3">
             <h3 className="text-xs font-black uppercase tracking-wider text-zinc-900">
-              Clinical Nodes Responding In Your Sector
+              Available Emergency Clinician Providers Nearby
             </h3>
-            {nursesLoading && <span className="text-[10px] font-bold text-zinc-400 animate-pulse uppercase">Scanning PostGIS...</span>}
+            {nursesLoading && <span className="text-[10px] font-bold text-zinc-400 animate-pulse uppercase">Searching...</span>}
           </div>
 
           {nurses.length === 0 ? (
-            <div className="py-20 border border-dashed border-zinc-200 rounded-2xl text-center bg-zinc-50/50">
-              <p className="text-sm font-bold text-zinc-500 uppercase tracking-wide">No Medical Responders Available</p>
-              <p className="text-xs text-zinc-400 uppercase tracking-wider mt-1">Expanding query parameters outside 5km perimeter coordinates filter...</p>
+            <div className="border border-dashed border-zinc-200 p-12 text-center rounded-2xl text-zinc-400 font-bold text-sm italic">
+              No medical practitioner nodes found active in your immediate geographical range.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {nurses.map((nurse) => (
                 <NurseCard 
                   key={nurse.id} 
                   nurse={nurse} 
-                  onSelect={allocationRequestingId === null ? handleDispatchAllocation : undefined}
+                  onDispatch={handleDispatchAllocation}
+                  isDispatching={allocationRequestingId === nurse.id}
                 />
               ))}
             </div>
