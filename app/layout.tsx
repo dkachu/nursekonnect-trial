@@ -5,6 +5,7 @@ import "./globals.css";
 
 import Footer from "@/components/marketing/Footer";
 import NavBarContainer from "@/components/NavBarContainer";
+import BroadcastNotificationOverlay from "@/components/dashboard/BroadcastNotificationOverlay";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/context/AuthContext"; 
 
@@ -21,6 +22,9 @@ export default function RootLayout({
     >
       <body className="min-h-screen bg-white text-zinc-900 antialiased font-sans">
         <AuthProvider>
+          {/* Stateless background listener processing medical telemetry chimes globally */}
+          <BroadcastNotificationOverlay />
+          
           <Toaster 
             position="top-center" 
             richColors 
