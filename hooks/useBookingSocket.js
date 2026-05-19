@@ -3,16 +3,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
-interface BookingSocketProps {
-  onMessageReceived: (data: any) => void;
-}
-
-export const useBookingSocket = (onMessageReceived: BookingSocketProps['onMessageReceived']) => {
-  // Extract global authentication context parameters to safeguard connection bounds
+export const useBookingSocket = (onMessageReceived) => {
   const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
-  const socketRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const socketRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
 
@@ -21,7 +16,7 @@ export const useBookingSocket = (onMessageReceived: BookingSocketProps['onMessag
   const connectSocket = useCallback(() => {
     if (typeof window === 'undefined') return;
 
-    // Guard: Abort socket connection upgrades immediately if the user context is unauthenticated
+    // Secure Guard: Abort socket connection upgrades immediately if the user context is unauthenticated
     if (!user || !user.id) {
       setIsConnected(false);
       if (socketRef.current) {
@@ -83,7 +78,7 @@ export const useBookingSocket = (onMessageReceived: BookingSocketProps['onMessag
     };
   }, [stableOnMessage, user]);
 
-  const sendMessage = useCallback((payload: object) => {
+  const sendMessage = useCallback((payload) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify(payload));
     } else {
