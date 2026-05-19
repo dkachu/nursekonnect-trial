@@ -65,7 +65,7 @@ export default function AppointmentsList() {
           </h3>
         </div>
         <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
-          isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          isConnected ? 'bg-green-50 text-green-700 border border-solid border-green-100' : 'bg-red-50 text-red-700 border border-solid border-red-100'
         }`}>
           {isConnected ? "Channel Live" : "Channel Stalled"}
         </span>
@@ -83,19 +83,19 @@ export default function AppointmentsList() {
       ) : (
         <div className="space-y-3">
           {bookings.map((booking) => (
-            <div key={booking.id} className="p-4 border border-solid border-zinc-100 rounded-xl bg-zinc-50/30 flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-zinc-800 uppercase tracking-wide">
+            <div key={booking.id} className="p-4 border border-solid border-zinc-100 rounded-xl bg-zinc-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1 min-w-0 flex-1">
+                <p className="text-xs font-bold text-zinc-800 uppercase tracking-wide truncate">
                   ID: {booking.id} | {booking.service_description}
                 </p>
                 <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">
                   Scheduled execution bounds: {new Date(booking.scheduled_date).toLocaleString()}
                 </p>
               </div>
-              <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${
-                booking.status === "pending" ? "bg-amber-100 text-amber-800" :
-                booking.status === "accepted" ? "bg-blue-100 text-blue-800" :
-                "bg-zinc-100 text-zinc-800"
+              <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full self-start sm:self-center shrink-0 border border-solid ${
+                booking.status === "pending" ? "bg-amber-50 text-amber-700 border-amber-100" :
+                booking.status === "accepted" ? "bg-blue-50 text-blue-700 border-blue-100" :
+                "bg-zinc-50 text-zinc-700 border-zinc-100"
               }`}>
                 {booking.status}
               </span>
