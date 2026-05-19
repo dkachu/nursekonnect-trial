@@ -5,10 +5,11 @@ import { NurseProfile } from "@/types/nurse";
 
 interface NurseCardProps {
   nurse: NurseProfile;
-  onSelect?: (nurse: NurseProfile) => void;
+  onDispatch?: (nurse: NurseProfile) => void;
+  isDispatching?: boolean;
 }
 
-export default function NurseCard({ nurse, onSelect }: NurseCardProps) {
+export default function NurseCard({ nurse, onDispatch, isDispatching = false }: NurseCardProps) {
   // Graceful email prefix fallback logic for user tracking aliases
   const displayName = nurse.user_details.email.includes("@")
     ? nurse.user_details.email.split("@")[0]
@@ -16,6 +17,7 @@ export default function NurseCard({ nurse, onSelect }: NurseCardProps) {
     
   const distanceKm = nurse.distance ? parseFloat(nurse.distance) : null;
   const isAvailableForDispatch = nurse.is_available && nurse.is_online;
+  const isLoading = isDispatching;
 
   return (
     <div className="border border-solid border-zinc-200 rounded-2xl bg-white p-6 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between select-none">
@@ -73,14 +75,14 @@ export default function NurseCard({ nurse, onSelect }: NurseCardProps) {
           )}
         </div>
         
-        {onSelect && (
+        {onDispatch && (
           <button
             type="button"
-            onClick={() => onSelect(nurse)}
-            disabled={!isAvailableForDispatch}
-            className="bg-zinc-950 hover:bg-zinc-800 disabled:bg-zinc-100 text-white disabled:text-zinc-400 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer disabled:cursor-not-allowed transition-all border-none active:scale-[0.98]"
+            onClick={() => onDispatch(nurse)}
+            disabled={!isAvailableForDispatch || isLoading}
+            className="bg-zinc-950 hover:bg-zinc-800 disabled:bg-zinc-100 text-white disabled:text-zinc-400 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer disabled:cursor-not-allowed transition-all border-none active:scale-[0.98] min-w-[100px]"
           >
-            Request Care
+            {isLoading ? "Routing Allocation..." : "Request Care"}
           </button>
         )}
       </div>
