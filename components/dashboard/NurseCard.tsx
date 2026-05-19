@@ -33,8 +33,8 @@ export default function NurseCard({ nurse, onDispatch, isDispatching = false }: 
           </div>
           <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0 ${
             isAvailableForDispatch
-              ? "bg-emerald-50 text-emerald-700" 
-              : "bg-zinc-100 text-zinc-500"
+              ? "bg-emerald-50 text-emerald-700 border border-solid border-emerald-100" 
+              : "bg-zinc-100 text-zinc-500 border border-solid border-zinc-200"
           }`}>
             <span className={`h-1.5 w-1.5 rounded-full ${isAvailableForDispatch ? "bg-emerald-500 animate-pulse" : "bg-zinc-400"}`} />
             {isAvailableForDispatch ? "Dispatch Active" : "Off-Duty"}
@@ -42,7 +42,7 @@ export default function NurseCard({ nurse, onDispatch, isDispatching = false }: 
         </div>
 
         <div className="grid grid-cols-2 gap-3 text-xs text-zinc-600 bg-zinc-50 p-3 rounded-xl border border-solid border-zinc-100">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 font-bold">
             <span>{nurse.years_of_experience} Yrs Exp</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -65,10 +65,10 @@ export default function NurseCard({ nurse, onDispatch, isDispatching = false }: 
       </div>
 
       <div className="mt-6 pt-4 border-t border-solid border-zinc-100 flex items-center justify-between gap-4">
-        <div>
+        <div className="min-w-0 flex-1">
           {distanceKm !== null ? (
-            <p className="text-xs text-zinc-500">
-              Proximity: <span className="text-zinc-900 font-black text-sm">{(distanceKm / 1000).toFixed(2)} km</span> away
+            <p className="text-xs text-zinc-500 truncate">
+              Proximity: <span className="text-zinc-900 font-black text-sm">{distanceKm.toFixed(2)} km</span> away
             </p>
           ) : (
             <p className="text-xs text-zinc-400 italic">Position unresolved</p>
@@ -80,9 +80,9 @@ export default function NurseCard({ nurse, onDispatch, isDispatching = false }: 
             type="button"
             onClick={() => onDispatch(nurse)}
             disabled={!isAvailableForDispatch || isLoading}
-            className="bg-zinc-950 hover:bg-zinc-800 disabled:bg-zinc-100 text-white disabled:text-zinc-400 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer disabled:cursor-not-allowed transition-all border-none active:scale-[0.98] min-w-[100px]"
+            className="bg-zinc-950 hover:bg-blue-600 disabled:bg-zinc-100 text-white disabled:text-zinc-400 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer disabled:cursor-not-allowed transition-all border-none active:scale-[0.98] shrink-0 min-w-[110px]"
           >
-            {isLoading ? "Routing Allocation..." : "Request Care"}
+            {isLoading ? "Routing..." : "Request Care"}
           </button>
         )}
       </div>
