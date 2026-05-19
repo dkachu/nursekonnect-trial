@@ -17,14 +17,16 @@ export const useLocationTracker = (patientId, isActive = false) => {
       return;
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:10000";
     const baseHost = apiUrl
       .replace(/^https?:\/\//, "")
       .replace(/\/api\/?$/, "")
       .replace(/\/$/, "");
 
     const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-    const wsUrl = `${wsScheme}://${baseHost}/ws/api/accounts/registry/`;
+    
+    // Direct traffic to match your Django ASGI routing structure without extra route pollution
+    const wsUrl = `${wsScheme}://${baseHost}/ws/accounts/registry/`;
 
     console.log(`[Socket] Connecting to spatial registry: ${wsUrl}`);
     const ws = new WebSocket(wsUrl);
