@@ -1,6 +1,15 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useAuth } from "@/context/AuthContext";
+
+interface HeartbeatProps {
+  isNurse: boolean;
+  isOnline: boolean;
+  isAvailable: boolean;
+  socketConnected: boolean;
+  sendWebSocketMessage: (payload: object) => void;
+}
 
 export function useProfessionalHeartbeat({
   isNurse,
@@ -8,7 +17,9 @@ export function useProfessionalHeartbeat({
   isAvailable,
   socketConnected,
   sendWebSocketMessage,
-}) {
+}: HeartbeatProps) {
+  // Extract the live user session state directly from the centralized auth context
+  const { user } = useAuth();
   const stateRef = useRef({ isAvailable, socketConnected });
 
   useEffect(() => {
@@ -16,9 +27,13 @@ export function useProfessionalHeartbeat({
   }, [isAvailable, socketConnected]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !isNurse || !isOnline) return;
+    if (typeof window === "undefined") return;
+    
+    # Secure Guard: Stop background sensor execution completely if the user session token is unauthenticated
+    if (!user || !user.id || !isNurse || !isOnline) return;
+
     if (!("geolocation" in navigator)) {
-      console.error("Browser geolocation modules missing.");
+      console.error("Browser geolocation modules missing inside this device node.");
       return;
     }
 
@@ -42,7 +57,6 @@ export function useProfessionalHeartbeat({
           if (stateRef.current.socketConnected) {
             sendWebSocketMessage(payload);
           } else {
-            // Build the absolute backend API endpoint path reliably
             const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:10000";
             const cleanUrl = rawUrl.endsWith('/') ? rawUrl : `${rawUrl}/`;
             const baseApiUrl = cleanUrl.includes('/api/') ? cleanUrl : `${cleanUrl}api/`;
@@ -50,7 +64,6 @@ export function useProfessionalHeartbeat({
 
             console.log(`[Heartbeat] Socket dead. Broadcasting HTTP fallback to: ${targetUrl}`);
             
-            // Deliver fallback payload across absolute cross-origin layouts using credentials
             fetch(targetUrl, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
@@ -76,5 +89,5 @@ export function useProfessionalHeartbeat({
     const pulseInterval = setInterval(transmitPulse, 300000);
 
     return () => clearInterval(pulseInterval);
-  }, [isNurse, isOnline, sendWebSocketMessage]);
+  }, [user, isNurse, isOnline, sendWebSocketMessage]);
 }
