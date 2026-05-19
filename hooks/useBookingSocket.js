@@ -18,13 +18,17 @@ export const useBookingSocket = (onMessageReceived) => {
       return;
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:10000/api/";
+    // Explicitly parse base domain paths cleanly without route configuration pollution
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:10000";
     const baseHost = apiUrl
       .replace(/^https?:\/\//, "")
       .replace(/\/api\/?$/, "")
       .replace(/\/$/, "");
 
+    // Establish WebSocket protocols based on browser infrastructure security
     const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+    
+    // Direct traffic to match your Django ASGI routing structure explicitly
     const wsUrl = `${wsScheme}://${baseHost}/ws/bookings/`;
     
     console.log(`[Booking Socket] Opening stream to: ${wsUrl}`);
