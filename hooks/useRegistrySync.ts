@@ -13,24 +13,23 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef<number>(0);
 
-  // Normalize protocol and host to form matching ws endpoint
-  const getSocketUrl = (): string => {
+  // Instantiates WebSocket and establishes client lifecycle handling
+  const connectWebSocket = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    // Normalize protocol and host to form matching ws endpoint cleanly
     const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:10000/api/";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:10000";
     
     const baseHost = apiUrl
       .replace(/^https?:\/\//, "")
       .replace(/\/api\/?$/, "")
       .replace(/\/$/, "");
 
-    return `${wsScheme}://${baseHost}/ws/api/accounts/registry/`;
-  };
+    // Align exactly with your Django channels routing paths
+    const url = `${wsScheme}://${baseHost}/ws/accounts/registry/`;
 
-  // Instantiates WebSocket and establishes client lifecycle handling
-  const connectWebSocket = useCallback(() => {
-    if (typeof window === "undefined") return;
-
-    const url = getSocketUrl();
+    console.log(`[Registry Sync] Connecting to mesh stream at: ${url}`);
     const socket = new WebSocket(url);
     socketRef.current = socket;
 
