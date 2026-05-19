@@ -1,6 +1,7 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
-
 
 export default function HomePage() {
   return (
@@ -20,9 +21,9 @@ export default function HomePage() {
           >
             Sign In
           </Link>
-          {/* External upstream breakout to Docker ASGI proxy endpoint */}
+          {/* External breakout link routing directly to your production cloud admin panel */}
           <a 
-            href="http://localhost:10000/admin/" 
+            href="https://onrender.com" 
             target="_blank" 
             rel="noreferrer"
             className="px-4 py-2 bg-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-300 transition"
