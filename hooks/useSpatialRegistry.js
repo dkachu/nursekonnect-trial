@@ -13,14 +13,15 @@ export const useSpatialRegistry = () => {
 
     // Normalize protocol and base host matching your shared API configuration
     const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:10000/api/';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:10000';
     
     const baseHost = apiUrl
       .replace(/^https?:\/\//, "")
       .replace(/\/api\/?$/, "")
       .replace(/\/$/, "");
 
-    const socketUrl = `${wsScheme}://${baseHost}/ws/api/accounts/registry/`;
+    // Align path exactly with your Django channels routing paths without extra route pollution
+    const socketUrl = `${wsScheme}://${baseHost}/ws/accounts/registry/`;
 
     console.log(`[Socket] Syncing with spatial hub: ${socketUrl}`);
     const socket = new WebSocket(socketUrl);
