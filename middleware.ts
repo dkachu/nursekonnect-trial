@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 const AUTH_ROUTES = ["/login", "/register", "/forgot-password"];
 const PATIENT_ONLY = ["/dashboard/patient", "/bookings/new"];
-const NURSE_ONLY = ["/dashboard/nurse", "/profile/edit"];
+const NURSE_ONLY = ["/dashboard/nurse"];
 
 // Parse stateless session parameters safely from token string slice
 function decodeJwt(token: string) {
@@ -65,12 +65,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(targetDashboard, request.url));
   }
 
-  // Route isolation parameters guarding practitioner or patient views
+  // Route isolation parameters guarding practitioner views
   if (NURSE_ONLY.some((route) => pathname.startsWith(route)) && !isNurse) {
     const fallback = isPatient ? "/dashboard/patient" : "/login?session=unauthorized";
     return NextResponse.redirect(new URL(fallback, request.url));
   }
 
+  // Route isolation parameters guarding patient views
   if (PATIENT_ONLY.some((route) => pathname.startsWith(route)) && !isPatient) {
     const fallback = isNurse ? "/dashboard/nurse" : "/login?session=unauthorized";
     return NextResponse.redirect(new URL(fallback, request.url));
