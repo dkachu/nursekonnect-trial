@@ -26,7 +26,7 @@ function LoginContent() {
   useEffect(() => {
     if (sessionExpired && !redirectingRef.current) {
       toast.error("Session Timeout", { 
-        description: "Your secure login period has ended. Please sign in again to protect your health account information." 
+        description: "Your secure login period has ended. Please sign in again to protect your secure health account information." 
       });
     }
   }, [sessionExpired]);
@@ -45,7 +45,7 @@ function LoginContent() {
       const profile = user.profile;
       const hasTown = typeof profile?.town === "string" && profile.town.trim().length > 0;
       const hasBuilding = typeof profile?.building === "string" && profile.building.trim().length > 0;
-      const isOnboarded = !!(hasTown && hasBuilding && user.is_synced);
+      const isOnboarded = !!(hasTown && hasBuilding);
       
       if (!isOnboarded) {
         router.replace("/setup");
@@ -55,18 +55,28 @@ function LoginContent() {
     }
   }, [user, authLoading, isNurse, router, redirectParam]);
 
-  // Post credential records cleanly to authentication store methods
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !password) {
+      toast.error("Input Required", { description: "Please populate all fields before authenticating." });
+      return;
+    }
+
     setLocalLoading(true);
     
     try {
-      const result = await login(email.trim(), password);
-      if (!result.success && result.error) {
-        toast.error("Sign In Issue", { description: result.error });
-      }
-    } catch {
-      toast.error("Connection Issue", { description: "We could not verify your details. Please check your internet connection and try again." });
+      // ✅ Enforce explicit parameter delivery to ensure Axios calculates Content-Length accurately
+      await login(cleanEmail, password);
+      
+      toast.success("AUTHORIZATION GRANTED", {
+        description: "Identity verified successfully. Routing to your secure workspace node..."
+      });
+    } catch (err: any) {
+      // Catch backend validation error payloads directly from the server response
+      const serverMessage = err.response?.data?.detail || "We could not verify your details. Please check your spelling and try again.";
+      toast.error("Sign In Issue", { description: serverMessage });
     } finally {
       setLocalLoading(false);
     }
@@ -108,7 +118,7 @@ function LoginContent() {
                 disabled={isLoading}
                 autoComplete="email"
                 placeholder="name@nursekonnect.com"
-                className="rounded-2xl h-14 border-zinc-100 bg-zinc-50 font-bold text-sm text-zinc-800 transition-all placeholder:text-zinc-300"
+                className="rounded-2xl h-14 border-zinc-100 bg-zinc-50 font-bold text-sm text-zinc-800 transition-all placeholder:text-zinc-300 focus-visible:ring-blue-600"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -124,7 +134,7 @@ function LoginContent() {
                 disabled={isLoading}
                 autoComplete="current-password"
                 placeholder="••••••••••••"
-                className="rounded-2xl h-14 border-zinc-100 bg-zinc-50 font-bold text-sm text-zinc-800 transition-all placeholder:text-zinc-300"
+                className="rounded-2xl h-14 border-zinc-100 bg-zinc-50 font-bold text-sm text-zinc-800 transition-all placeholder:text-zinc-300 focus-visible:ring-blue-600"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
