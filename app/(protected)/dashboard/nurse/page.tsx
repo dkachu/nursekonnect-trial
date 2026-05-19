@@ -181,32 +181,20 @@ export default function NurseDashboardPage() {
                           type="button"
                           disabled={mutatingId === booking.id}
                           onClick={() => handleLifecycleMutation(booking.id, "declined")}
-                          className="bg-zinc-100 hover:bg-zinc-200 disabled:bg-zinc-50 text-zinc-700 disabled:text-zinc-400 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer border-none transition-all"
+                          className="bg-zinc-100 hover:bg-zinc-200 disabled:bg-zinc-50 text-zinc-700 disabled:text-zinc-300 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer border-none transition-all"
                         >
                           Decline
                         </button>
                       </>
                     )}
-
-                    {booking.status === "accepted" && !booking.is_verified_arrival && (
+                    {booking.status === "accepted" && (
                       <button
                         type="button"
                         disabled={mutatingId === booking.id}
                         onClick={() => handleLifecycleMutation(booking.id, "in_progress", true)}
-                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-100 text-white disabled:text-zinc-400 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer border-none transition-all"
+                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-100 text-white disabled:text-zinc-400 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer border-none transition-all shadow-md"
                       >
-                        Verify Arrival & Start Session
-                      </button>
-                    )}
-
-                    {booking.status === "in_progress" && (
-                      <button
-                        type="button"
-                        disabled={mutatingId === booking.id}
-                        onClick={() => handleLifecycleMutation(booking.id, "completed")}
-                        className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-100 text-white disabled:text-zinc-400 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer border-none transition-all"
-                      >
-                        End Session & Complete
+                        Verify Arrival
                       </button>
                     )}
                   </div>
@@ -214,17 +202,6 @@ export default function NurseDashboardPage() {
               ))}
             </div>
           )}
-        </div>
-
-        <div className="bg-zinc-50/50 rounded-2xl border border-solid border-zinc-100 p-6 space-y-4">
-          <h4 className="text-xs font-black uppercase tracking-wider text-zinc-900">
-            Node System Profiles
-          </h4>
-          <div className="space-y-2 text-xs text-zinc-600">
-            <p><strong>License Token:</strong> {profileData.profile.license_number}</p>
-            <p><strong>Registry Sector:</strong> {profileData.profile.building}, {profileData.profile.town}</p>
-            <p><strong>Experience Metrics:</strong> {profileData.profile.years_of_experience} Years</p>
-          </div>
         </div>
       </div>
     </main>
