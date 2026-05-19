@@ -1,4 +1,3 @@
-// context/AuthContext.tsx
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -101,30 +100,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [refreshUser]);
 
-  // Authenticate user credentials and evaluate onboarding layout status
+  // Authenticate user credentials and safely update core data states
   const login = useCallback(async (email: string, password: string): Promise<AuthResponse> => {
     try {
       await api.post("accounts/login/", { email, password });
       const userData = await refreshUser();
       
       if (userData) {
-        const profile = userData.profile || {};
-        const hasTown = typeof profile.town === "string" && profile.town.trim().length > 0;
-        const hasBuilding = typeof profile.building === "string" && profile.building.trim().length > 0;
-        const isOnboarded = !!(hasTown && hasBuilding);
-        
-        if (!isOnboarded) {
-          router.push("/setup");
-        } else if (userData.is_nurse) {
-          router.push("/dashboard/nurse");
-        } else {
-          router.push("/dashboard/patient");
-        }
-        
-        toast.success("Welcome Back");
+        // Handled cleanly: Page components handle the dashboard redirect tasks on state sync confirmation
         return { success: true };
       }
-      return { success: false };
+      return { success: false, error: "Profile dataset retrieval failure." };
     } catch (error: unknown) {
       let message = "We could not verify your details. Please check your spelling and try again.";
       if (error && typeof error === "object" && "response" in error) {
@@ -133,10 +119,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   axiosError.response?.data?.non_field_errors?.[0] || 
                   message;
       }
-      toast.error("Sign In Issue", { description: message });
       return { success: false, error: message };
     }
-  }, [refreshUser, router]);
+  }, [refreshUser]);
 
   // Submit new user profile payload to account registration endpoint
   const register = useCallback(async (
@@ -162,7 +147,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           firstError = String(Object.values(serverErrors).flat()[0] || firstError);
         }
       }
-      toast.error("Registration Issue", { description: firstError });
       return { success: false, error: firstError };
     }
   }, [login]);
