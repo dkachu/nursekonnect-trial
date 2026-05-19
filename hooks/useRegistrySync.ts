@@ -1,23 +1,33 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
 interface SyncHookProps {
-  onNewDispatch: () => void;
+  onNewDispatch?: () => void;
 }
 
-export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
+export function useRegistrySync({ onNewDispatch }: SyncHookProps = {}) {
+  const { user } = useAuth();
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef<number>(0);
 
-  // Instantiates WebSocket and establishes client lifecycle handling
   const connectWebSocket = useCallback(() => {
     if (typeof window === "undefined") return;
 
-    // Normalize protocol and host to form matching ws endpoint cleanly
+    // Secure Guard: Abort socket connection upgrades immediately if the user context is unauthenticated
+    if (!user || !user.id) {
+      setIsConnected(false);
+      if (socketRef.current) {
+        socketRef.current.close(1000, "Session terminated");
+        socketRef.current = null;
+      }
+      return;
+    }
+
     const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:10000";
     
@@ -26,10 +36,9 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
       .replace(/\/api\/?$/, "")
       .replace(/\/$/, "");
 
-    // Align exactly with your Django channels routing paths
     const url = `${wsScheme}://${baseHost}/ws/accounts/registry/`;
 
-    console.log(`[Registry Sync] Connecting to mesh stream at: ${url}`);
+    console.log(`[Registry Sync] Initializing authenticated stream node for User #${user.id}`);
     const socket = new WebSocket(url);
     socketRef.current = socket;
 
@@ -42,7 +51,6 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
       try {
         const data = JSON.parse(event.data);
         
-        // Handles structured backend envelopes cleanly
         if (data.type === "PERSONAL_ALERT" && data.payload) {
           const action = data.payload.action;
 
@@ -74,12 +82,12 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
       }
     };
 
-    // Exponential backoff strategy to safely handle connection drops
     socket.onclose = (event) => {
       setIsConnected(false);
       socketRef.current = null;
 
-      if (event.code !== 1000 && event.code !== 1001) {
+      // Only attempt reconnect logic if user is logged in and the closure was unhandled
+      if (user?.id && event.code !== 1000 && event.code !== 1001) {
         const maxDelay = 30000;
         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), maxDelay);
         
@@ -92,11 +100,12 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
     };
 
     socket.onerror = () => {
-      console.warn("Real-time network connection dropped. Re-establishing secure link...");
+      if (user?.id) {
+        console.warn("Real-time network connection dropped. Re-establishing secure link...");
+      }
     };
-  }, [onNewDispatch]);
+  }, [onNewDispatch, user]);
 
-  // Safe outbound wrapper ensuring thread pipeline sanity
   const sendWebSocketMessage = useCallback((payload: object) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify(payload));
@@ -108,11 +117,11 @@ export function useRegistrySync({ onNewDispatch }: SyncHookProps) {
   useEffect(() => {
     connectWebSocket();
 
-    // Prevent active connection memory leaks during unmounts
     return () => {
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (socketRef.current) {
         socketRef.current.close(1000, "Component context unmounted cleanly.");
+        socketRef.current = null;
       }
     };
   }, [connectWebSocket]);
