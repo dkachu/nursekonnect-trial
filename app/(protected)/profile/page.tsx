@@ -33,14 +33,15 @@ export default function ProfilePage() {
     }
 
     if (user && user.profile) {
+      const profile = user.profile as Record<string, any>;
       setFormData({
-        town: user.profile.town || "",
-        building: user.profile.building || "",
-        specialization: user.profile.specialization || "",
-        years_of_experience: user.profile.years_of_experience?.toString() || "",
-        blood_group: user.profile.blood_group || "",
-        allergies: user.profile.allergies || "",
-        medical_history: user.profile.medical_history || "",
+        town: profile.town || "",
+        building: profile.building || "",
+        specialization: profile.specialization || "",
+        years_of_experience: profile.years_of_experience?.toString() || "",
+        blood_group: profile.blood_group || "",
+        allergies: profile.allergies || "",
+        medical_history: profile.medical_history || "",
       });
     }
   }, [user, authLoading, router]);
@@ -171,24 +172,26 @@ export default function ProfilePage() {
               Patient Emergency Diagnostic Variables
             </h3>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">Blood Group Category</Label>
-                <Input 
-                  type="text" disabled={isLoading} placeholder="e.g. O+" maxLength={3}
-                  value={formData.blood_group} onChange={(e) => setFormData({ ...formData, blood_group: e.target.value })}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">Blood Group Category</Label>
+                  <Input 
+                    type="text" disabled={isLoading} placeholder="e.g. O+" maxLength={3}
+                    value={formData.blood_group} onChange={(e) => setFormData({ ...formData, blood_group: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">Known Allergies Index</Label>
+                  <Input 
+                    type="text" disabled={isLoading} placeholder="e.g. Penicillin, Peanuts"
+                    value={formData.allergies} onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
+                  />
+                </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">Known Allergies</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">Chronic Medical History Summary</Label>
                 <Input 
-                  type="text" disabled={isLoading} placeholder="e.g. Penicillin"
-                  value={formData.allergies} onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">Medical History Summary</Label>
-                <Input 
-                  type="text" disabled={isLoading} placeholder="e.g. Hypertension history"
+                  type="text" disabled={isLoading} placeholder="e.g. Hypertension diagnosed in 2024"
                   value={formData.medical_history} onChange={(e) => setFormData({ ...formData, medical_history: e.target.value })}
                 />
               </div>
@@ -197,10 +200,11 @@ export default function ProfilePage() {
         )}
 
         <Button 
-          disabled={isLoading} type="submit" 
-          className="w-full bg-zinc-950 hover:bg-blue-600 text-white h-16 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl border-none transition-all cursor-pointer"
+          disabled={isLoading}
+          type="submit" 
+          className="w-full bg-zinc-950 hover:bg-blue-600 text-white h-16 rounded-2xl font-black text-xs uppercase tracking-widest border-none transition-all duration-200 shadow-xl flex items-center justify-center cursor-pointer disabled:cursor-not-allowed"
         >
-          {localLoading ? "Saving Profile Parameters..." : "Commit Modification Entry"}
+          {isLoading ? <span>Synchronising Parameters...</span> : <span>Commit Record Updates</span>}
         </Button>
       </form>
     </main>
