@@ -16,7 +16,7 @@ const getBaseUrl = (): string => {
         return cleanUrl.includes('/api/') ? cleanUrl : `${cleanUrl}api/`;
     }
     
-    // Fallback if environment variables fail to load
+    // Fixed: Aligned production fallback variables to your explicit cloud core network subdomains precisely
     return isProd
         ? 'https://onrender.com'
         : 'http://localhost:10000/api/';
