@@ -24,7 +24,7 @@ export default function RegisterPage() {
     is_patient: false,
   });
 
-  // Structural route guard redirecting authenticated sessions to correct nodes
+  // Verify and route users who are already logged in to their dashboards
   useEffect(() => {
     if (authLoading || redirectingRef.current) return;
 
@@ -43,13 +43,13 @@ export default function RegisterPage() {
     }
   }, [user, authLoading, isNurse, router]);
 
-  // Transmits payload records back to AuthContext validation routines
+  // Post form values cleanly using backend-aligned field keys
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.is_nurse && !formData.is_patient) {
-      toast.error("Role Selection Required", { 
-        description: "Please specify whether you are registering as a Professional or Recipient." 
+      toast.error("Account Type Required", { 
+        description: "Please specify whether you are registering as a Healthcare Professional or a Patient." 
       });
       return;
     }
@@ -65,17 +65,15 @@ export default function RegisterPage() {
         formData.is_patient
       );
       
+      // AuthContext handles automatic login and routing internally on success
       if (result && result.success) {
-        toast.success("Account Enrolled", { description: "Redirecting to validation terminal..." });
-        setTimeout(() => {
-          router.push("/login");
-        }, 1200);
+        toast.success("Registration Successful", { description: "Preparing your care environment..." });
       } else if (result && result.error) {
-        toast.error("Registration Refused", { description: result.error });
+        toast.error("Registration Issue", { description: result.error });
       }
     } catch (err) {
-      toast.error("Registry Offline", { 
-        description: "The registry node rejected the authorization handshake." 
+      toast.error("Connection Issue", { 
+        description: "We could not complete your registration. Please check your internet connection and try again." 
       });
     } finally {
       setLocalLoading(false);
@@ -88,21 +86,21 @@ export default function RegisterPage() {
     return (
       <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4 font-sans">
         <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 animate-pulse">
-          Synchronising Security Session...
+          Opening Secure Care Space...
         </p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white min-h-[95vh] flex items-center justify-center px-4 py-8 md:py-16 relative overflow-hidden font-sans select-none animate-in fade-in-50 duration-300">
+    <div className="bg-white min-h-[95vh] flex items-center justify-center px-4 py-8 md:py-16 relative overflow-hidden font-sans select-none">
       <div className="max-w-md w-full space-y-8 relative z-10 p-2">
         <div className="text-center space-y-3">
           <div className="text-blue-600 font-black text-[10px] uppercase tracking-widest shifted-tracking-wide italic">
-            Enrolment Portal Gateway
+            Join Our Care Network
           </div>
           <h1 className="text-4xl font-black text-zinc-900 uppercase tracking-tighter italic leading-none">
-            Registration
+            Create Account
           </h1>
         </div>
 
@@ -120,7 +118,7 @@ export default function RegisterPage() {
                 )}
              >
                 <span className="text-[10px] uppercase tracking-widest">
-                  PROFESSIONAL
+                  NURSE
                 </span>
              </button>
 
@@ -136,7 +134,7 @@ export default function RegisterPage() {
                 )}
              >
                 <span className="text-[10px] uppercase tracking-widest">
-                  RECIPIENT
+                  PATIENT
                 </span>
              </button>
           </div>
@@ -144,15 +142,15 @@ export default function RegisterPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">
-                Registry Email Address
+                Email Address
               </Label>
               <Input
                 type="email"
                 required
                 disabled={isLoading}
                 autoComplete="email"
-                placeholder="nursekonnect@gmail.com"
-                className="rounded-2xl h-14 bg-zinc-50 font-bold text-sm border-zinc-100 text-zinc-800 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-0 transition-all placeholder:text-zinc-300"
+                placeholder="name@example.com"
+                className="rounded-2xl h-14 bg-zinc-50 font-bold text-sm border-zinc-100 text-zinc-800 transition-all placeholder:text-zinc-300"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
@@ -160,7 +158,7 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">
-                Contact Phone Line (SMS Delivery Link)
+                Mobile Phone Number
               </Label>
               <Input
                 type="tel"
@@ -168,7 +166,7 @@ export default function RegisterPage() {
                 disabled={isLoading}
                 autoComplete="tel"
                 placeholder="07XXXXXXXX"
-                className="rounded-2xl h-14 bg-zinc-50 font-bold text-sm border-zinc-100 text-zinc-800 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-0 transition-all placeholder:text-zinc-300"
+                className="rounded-2xl h-14 bg-zinc-50 font-bold text-sm border-zinc-100 text-zinc-800 transition-all placeholder:text-zinc-300"
                 value={formData.phone_number}
                 onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
               />
@@ -176,7 +174,7 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">
-                Security Access Password (Min 8 Characters)
+                Password (Minimum 8 Characters)
               </Label>
               <Input
                 type="password"
@@ -185,7 +183,7 @@ export default function RegisterPage() {
                 disabled={isLoading}
                 autoComplete="new-password"
                 placeholder="••••••••••••"
-                className="rounded-2xl h-14 bg-zinc-50 font-bold text-sm border-zinc-100 text-zinc-800 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-0 transition-all placeholder:text-zinc-300"
+                className="rounded-2xl h-14 bg-zinc-50 font-bold text-sm border-zinc-100 text-zinc-800 transition-all placeholder:text-zinc-300"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               />
@@ -195,12 +193,12 @@ export default function RegisterPage() {
           <Button 
             disabled={isLoading}
             type="submit" 
-            className="w-full bg-blue-600 hover:bg-zinc-950 h-16 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all active:scale-[0.99] flex items-center justify-center text-white border-none cursor-pointer disabled:cursor-not-allowed"
+            className="w-full bg-blue-600 hover:bg-zinc-950 text-white h-16 rounded-2xl font-black text-xs uppercase tracking-widest border-none transition-all duration-200 shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
           >
             {isLoading ? (
-              <span>ENROLLING ACCOUNT RECORD...</span>
+              <span>Creating Account...</span>
             ) : (
-              <span>CREATE ACCOUNT IDENTITY</span>
+              <span>Complete Registration</span>
             )}
           </Button>
         </form>
@@ -208,10 +206,15 @@ export default function RegisterPage() {
         <div className="pt-6 border-t border-dashed border-zinc-100 text-center space-y-4">
           <Link 
             href="/login" 
-            className="text-zinc-500 font-black text-xs uppercase tracking-widest hover:text-blue-600 transition-colors block no-underline hover:underline"
+            className="text-blue-600 font-black text-xs uppercase tracking-widest hover:text-zinc-950 transition-colors block no-underline hover:underline"
           >
-            ← RETURN TO LOGIN TERMINAL
+            Already Have an Account? Sign In
           </Link>
+          <div className="flex items-center justify-center gap-1.5 text-zinc-300 select-none">
+            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">
+              NurseKonnect On-Demand Health Network
+            </p>
+          </div>
         </div>
       </div>
     </div>

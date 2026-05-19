@@ -17,28 +17,26 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, login, loading: authLoading, isNurse } = useAuth();
-  
   const redirectingRef = useRef<boolean>(false);
   
   const sessionExpired = searchParams.get("session") === "expired";
   const redirectParam = searchParams.get("redirect");
 
-  // Display security session termination alerts gracefully on context mounts
+  // Catch expired login states cleanly using clear healthcare wording
   useEffect(() => {
     if (sessionExpired && !redirectingRef.current) {
-      toast.error("Session Expired", { 
-        description: "Your secure authorization handshake timed out. Re-authenticate to resume." 
+      toast.error("Session Timeout", { 
+        description: "Your secure login period has ended. Please sign in again to protect your health account information." 
       });
     }
   }, [sessionExpired]);
 
-  // Evaluates user role tracking models and enforces routing destination shifts
+  // Handle active user redirects to the proper member boards
   useEffect(() => {
     if (authLoading || redirectingRef.current) return;
 
     if (user) {
       redirectingRef.current = true;
-      
       if (redirectParam) {
         router.replace(decodeURIComponent(redirectParam));
         return;
@@ -52,13 +50,12 @@ function LoginContent() {
       if (!isOnboarded) {
         router.replace("/setup");
       } else {
-        // Aligned precisely to match your role tracking routing blueprints
         router.replace(isNurse ? "/dashboard/nurse" : "/dashboard/patient");
       }
     }
   }, [user, authLoading, isNurse, router, redirectParam]);
 
-  // Submits credentials records securely back to your api routing interceptor
+  // Post credential records cleanly to authentication store methods
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLocalLoading(true);
@@ -66,10 +63,10 @@ function LoginContent() {
     try {
       const result = await login(email.trim(), password);
       if (!result.success && result.error) {
-        toast.error("Authentication Failed", { description: result.error });
+        toast.error("Sign In Issue", { description: result.error });
       }
     } catch {
-      toast.error("Network Timeout", { description: "The central authorization rejected the transaction handshake." });
+      toast.error("Connection Issue", { description: "We could not verify your details. Please check your internet connection and try again." });
     } finally {
       setLocalLoading(false);
     }
@@ -81,21 +78,21 @@ function LoginContent() {
     return (
       <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4 font-sans">
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 animate-pulse">
-          Synchronising Security Session...
+          Opening Secure Care Space...
         </p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white min-h-[95vh] flex items-center justify-center px-4 py-8 md:py-16 relative overflow-hidden font-sans select-none animate-in fade-in-50 duration-300">
+    <div className="bg-white min-h-[95vh] flex items-center justify-center px-4 py-8 md:py-16 relative overflow-hidden font-sans select-none">
       <div className="max-w-md w-full space-y-8 relative z-10 p-2">
         <div className="text-center space-y-3">
           <div className="text-blue-600 font-black text-[10px] uppercase tracking-[0.3em] italic">
-            Security Passport Layer
+            Secure Member Portal
           </div>
           <h1 className="text-4xl font-black text-zinc-900 uppercase tracking-tighter italic leading-none">
-            Authentication
+            Sign In
           </h1>
         </div>
 
@@ -103,7 +100,7 @@ function LoginContent() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">
-                Registry Email Address
+                Your Email Address
               </Label>
               <Input 
                 type="email" 
@@ -111,7 +108,7 @@ function LoginContent() {
                 disabled={isLoading}
                 autoComplete="email"
                 placeholder="name@nursekonnect.com"
-                className="rounded-2xl h-14 border-zinc-100 bg-zinc-50 focus-visible:ring-2 focus-visible:ring-blue-600 font-bold text-sm text-zinc-800 focus-visible:ring-offset-0 transition-all placeholder:text-zinc-300"
+                className="rounded-2xl h-14 border-zinc-100 bg-zinc-50 font-bold text-sm text-zinc-800 transition-all placeholder:text-zinc-300"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -119,7 +116,7 @@ function LoginContent() {
 
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">
-                Security Passphrase
+                Your Password
               </Label>
               <Input 
                 type="password" 
@@ -127,7 +124,7 @@ function LoginContent() {
                 disabled={isLoading}
                 autoComplete="current-password"
                 placeholder="••••••••••••"
-                className="rounded-2xl h-14 border-zinc-100 bg-zinc-50 focus-visible:ring-2 focus-visible:ring-blue-600 font-bold text-sm text-zinc-800 focus-visible:ring-offset-0 transition-all placeholder:text-zinc-300"
+                className="rounded-2xl h-14 border-zinc-100 bg-zinc-50 font-bold text-sm text-zinc-800 transition-all placeholder:text-zinc-300"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -137,12 +134,12 @@ function LoginContent() {
           <Button 
             disabled={isLoading}
             type="submit" 
-            className="w-full bg-zinc-950 hover:bg-blue-600 text-white h-16 rounded-2xl font-black text-xs uppercase tracking-widest border-none transition-all duration-200 shadow-xl active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+            className="w-full bg-zinc-950 hover:bg-blue-600 text-white h-16 rounded-2xl font-black text-xs uppercase tracking-widest border-none transition-all duration-200 shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
           >
             {isLoading ? (
-              <span>VERIFYING CREDENTIALS...</span>
+              <span>Verifying Details...</span>
             ) : (
-              <span>ENTER SECURE APP HUB</span>
+              <span>Access Care Account</span>
             )}
           </Button>
         </form>
@@ -152,11 +149,11 @@ function LoginContent() {
             href="/register" 
             className="text-blue-600 font-black text-xs uppercase tracking-widest hover:text-zinc-950 transition-colors block no-underline hover:underline"
           >
-            NEW ENROLMENT REGISTRATION →
+            Create a New Account
           </Link>
           <div className="flex items-center justify-center gap-1.5 text-zinc-300 select-none">
             <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">
-              NURSEKONNEKT CENTRAL LOGISTICS HUB MATRIX
+              NurseKonnect On-Demand Health Network
             </p>
           </div>
         </div>
@@ -170,7 +167,7 @@ export default function LoginPage() {
     <Suspense fallback={
       <div className="h-screen w-full bg-white flex flex-col items-center justify-center gap-4 font-sans">
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-300 animate-pulse">
-          LOADING ENTRY HUB MATRIX...
+          Loading Care Space...
         </p>
       </div>
     }>
