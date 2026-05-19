@@ -16,7 +16,7 @@ export default function ProfileSetupPage() {
   const [hardwareCoordinates, setHardwareCoordinates] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
   const [sensorError, setSensorError] = useState<string | null>(null);
 
-  # FIXED: Relocated form states initialization block to the top of the function to satisfy compilation parameters
+  // Relocated form states initialization block to the top of the function to satisfy compilation parameters
   const [formData, setFormData] = useState({
     town: "",
     building: "",
@@ -181,7 +181,6 @@ export default function ProfileSetupPage() {
                 <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">
                   Years of Certified Active Experience
                 </Label>
-                # FIXED: Constructed missing closing block structures for input parameters securely
                 <Input
                   type="number"
                   required={isNurse}
